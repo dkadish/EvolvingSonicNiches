@@ -1,0 +1,47 @@
+digraph {
+	node [fontsize=9 height=0.2 shape=circle width=0.2]
+	subgraph inputs {
+		node [shape=box style=filled]
+		rank=same
+		-1 [fillcolor=lightgray]
+		-2 [fillcolor=lightgray]
+		-1 -> -2 [style=invis]
+		-3 [fillcolor=lightgray]
+		-2 -> -3 [style=invis]
+	}
+	subgraph outputs {
+		node [style=filled]
+		rank=same
+		0 [fillcolor=lightblue fontsize=9 height=0.2 shape=circle width=0.2]
+		1 [fillcolor=lightblue fontsize=9 height=0.2 shape=circle width=0.2]
+		0 -> 1 [style=invis]
+		2 [fillcolor=lightblue fontsize=9 height=0.2 shape=circle width=0.2]
+		1 -> 2 [style=invis]
+		3 [fillcolor=lightblue fontsize=9 height=0.2 shape=circle width=0.2]
+		2 -> 3 [style=invis]
+		4 [fillcolor=lightblue fontsize=9 height=0.2 shape=circle width=0.2]
+		3 -> 4 [style=invis]
+		5 [fillcolor=lightblue fontsize=9 height=0.2 shape=circle width=0.2]
+		4 -> 5 [style=invis]
+		6 [fillcolor=lightblue fontsize=9 height=0.2 shape=circle width=0.2]
+		5 -> 6 [style=invis]
+		7 [fillcolor=lightblue fontsize=9 height=0.2 shape=circle width=0.2]
+		6 -> 7 [style=invis]
+		8 [fillcolor=lightblue fontsize=9 height=0.2 shape=circle width=0.2]
+		7 -> 8 [style=invis]
+	}
+	104 [fillcolor=white style=filled]
+	142 [fillcolor=white style=filled]
+	182 [fillcolor=white style=filled]
+	87 [fillcolor=white style=filled]
+	252 [fillcolor=white style=filled]
+	-3 -> 2 [color=green penwidth=0.38994402355101354 style=dotted]
+	-2 -> 7 [color=green penwidth=0.5315877360937739 style=dotted]
+	87 -> 2 [color=red penwidth=0.19602121665274588 style=solid]
+	-2 -> 142 [color=green penwidth=0.30304224023410586 style=solid]
+	-3 -> 182 [color=green penwidth=0.1069401365122572 style=solid]
+	182 -> 2 [color=red penwidth=0.18409220672142465 style=solid]
+	252 -> 7 [color=green penwidth=0.517631006163875 style=solid]
+	1 -> 87 [color=green penwidth=0.3031955455357246 style=solid]
+	87 -> 4 [color=green penwidth=0.16005104266284953 style=solid]
+}

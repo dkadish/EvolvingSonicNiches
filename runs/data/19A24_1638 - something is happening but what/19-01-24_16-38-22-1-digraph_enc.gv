@@ -1,0 +1,36 @@
+digraph {
+	node [fontsize=9 height=0.2 shape=circle width=0.2]
+	subgraph inputs {
+		node [shape=box style=filled]
+		rank=same
+		-1 [fillcolor=lightgray]
+		-2 [fillcolor=lightgray]
+		-1 -> -2 [style=invis]
+		-3 [fillcolor=lightgray]
+		-2 -> -3 [style=invis]
+	}
+	subgraph outputs {
+		node [style=filled]
+		rank=same
+		0 [fillcolor=lightblue fontsize=9 height=0.2 shape=circle width=0.2]
+		1 [fillcolor=lightblue fontsize=9 height=0.2 shape=circle width=0.2]
+		0 -> 1 [style=invis]
+		2 [fillcolor=lightblue fontsize=9 height=0.2 shape=circle width=0.2]
+		1 -> 2 [style=invis]
+		3 [fillcolor=lightblue fontsize=9 height=0.2 shape=circle width=0.2]
+		2 -> 3 [style=invis]
+		4 [fillcolor=lightblue fontsize=9 height=0.2 shape=circle width=0.2]
+		3 -> 4 [style=invis]
+		5 [fillcolor=lightblue fontsize=9 height=0.2 shape=circle width=0.2]
+		4 -> 5 [style=invis]
+		6 [fillcolor=lightblue fontsize=9 height=0.2 shape=circle width=0.2]
+		5 -> 6 [style=invis]
+		7 [fillcolor=lightblue fontsize=9 height=0.2 shape=circle width=0.2]
+		6 -> 7 [style=invis]
+		8 [fillcolor=lightblue fontsize=9 height=0.2 shape=circle width=0.2]
+		7 -> 8 [style=invis]
+	}
+	-3 -> 7 [color=red penwidth=1.0502669806251876 style=solid]
+	-2 -> 4 [color=green penwidth=0.7593632451182616 style=solid]
+	-3 -> 5 [color=green penwidth=0.2266099295356835 style=solid]
+}
