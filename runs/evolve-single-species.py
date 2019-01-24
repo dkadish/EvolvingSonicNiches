@@ -56,7 +56,7 @@ def run(config_encoders, config_decoders):
     dec_evaluator = DecoderEvaluator(encoded, scores, decoder_genomes)
 
     # Run for up to 300 generations.
-    n = 10
+    n = 4
     k = 0
     while n is None or k < n:
 
@@ -97,8 +97,8 @@ def run(config_encoders, config_decoders):
 
     # node_names = {-1:'A', -2: 'B', 0:'A XOR B'}
     d = datetime.now()
-    visualize.draw_net(config_enc, enc.best_genome, True, filename='%s-digraph_enc.gv' %d.strftime('%y-%m-%d_%H-%M-%S'))#, node_names=node_names)
-    visualize.draw_net(config_dec, dec.best_genome, True, filename='%s-digraph_dec.gv' %d.strftime('%y-%m-%d_%H-%M-%S'))#, node_names=node_names)
+    visualize.draw_net(config_enc, enc.best_genome, view=False, filename='%s-digraph_enc.gv' %d.strftime('%y-%m-%d_%H-%M-%S'))#, node_names=node_names)
+    visualize.draw_net(config_dec, dec.best_genome, view=False, filename='%s-digraph_dec.gv' %d.strftime('%y-%m-%d_%H-%M-%S'))#, node_names=node_names)
     visualize.plot_stats(enc_stats, ylog=False, view=True, filename='%s-avg_fitness_enc.svg' %d.strftime('%y-%m-%d_%H-%M-%S'))
     # visualize.plot_species(enc_stats, view=True)
     visualize.plot_stats(dec_stats, ylog=False, view=True, filename='%s-avg_fitness_dec.svg' %d.strftime('%y-%m-%d_%H-%M-%S'))

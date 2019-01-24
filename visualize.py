@@ -112,6 +112,29 @@ def plot_species(statistics, view=False, filename='speciation.svg'):
 
     plt.close()
 
+def plot_spectrum(spectra, view=False, filename='spectrum.svg'):
+    """ Plots the population's average and best fitness. """
+    if plt is None:
+        warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    spectra = np.array(spectra).T
+    fig, ax = plt.subplots()
+    p = ax.pcolormesh(spectra, cmap='bone')
+    fig.colorbar(p,ax=ax)
+
+    plt.title("Use of the communication spectrum by generation")
+    plt.xlabel("Generations")
+    plt.ylabel("Spectrum")
+    plt.grid()
+    # plt.legend(loc="best")
+
+    plt.savefig(filename)
+    if view:
+        plt.show()
+
+    plt.close()
+
 
 def draw_net(config, genome, view=False, filename=None, node_names=None, show_disabled=True, prune_unused=False,
              node_colors=None, fmt='svg'):
@@ -140,22 +163,40 @@ def draw_net(config, genome, view=False, filename=None, node_names=None, show_di
     dot = graphviz.Digraph(format=fmt, node_attr=node_attrs)
 
     inputs = set()
-    for k in config.genome_config.input_keys:
-        inputs.add(k)
-        name = node_names.get(k, str(k))
-        input_attrs = {'style': 'filled',
-                       'shape': 'box'}
-        input_attrs['fillcolor'] = node_colors.get(k, 'lightgray')
-        dot.node(name, _attributes=input_attrs)
+    last = None
+
+    input_attrs = {'style': 'filled',
+                   'shape': 'box'}
+    with dot.subgraph(name='inputs', node_attr=input_attrs) as in_graph:
+        in_graph.attr(rank='same')
+        for k in config.genome_config.input_keys:
+            name = node_names.get(k, str(k))
+            inputs.add(k)
+            attrs = {'fillcolor': node_colors.get(k, 'lightgray')}
+            in_graph.node(name, _attributes=attrs)
+
+            if last is not None:
+                in_graph.edge(str(last), str(k), _attributes={'style': 'invis'})
+
+            last = k
 
     outputs = set()
-    for k in config.genome_config.output_keys:
-        outputs.add(k)
-        name = node_names.get(k, str(k))
-        node_attrs = {'style': 'filled'}
-        node_attrs['fillcolor'] = node_colors.get(k, 'lightblue')
+    last = None
 
-        dot.node(name, _attributes=node_attrs)
+    out_attrs = {'style': 'filled'}
+    with dot.subgraph(name='outputs', node_attr=out_attrs) as out_graph:
+        out_graph.attr(rank='same')
+        for k in config.genome_config.output_keys:
+            outputs.add(k)
+            name = node_names.get(k, str(k))
+            node_attrs['fillcolor'] = node_colors.get(k, 'lightblue')
+
+            out_graph.node(name, _attributes=node_attrs)
+
+            if last is not None:
+                out_graph.edge(str(last), str(k), _attributes={'style': 'invis'})
+
+            last = k
 
     if prune_unused:
         connections = set()

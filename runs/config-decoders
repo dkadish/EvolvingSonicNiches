@@ -1,9 +1,9 @@
-#--- parameters for the XOR-2 experiment ---#
+#--- parameters for the Decoders for the communication experiments ---#
 
 [NEAT]
 fitness_criterion     = max
 fitness_threshold     = 0.0
-pop_size              = 150
+pop_size              = 50
 reset_on_extinction   = False
 
 [DefaultGenome]
@@ -39,7 +39,7 @@ enabled_default         = True
 enabled_mutate_rate     = 0.01
 
 feed_forward            = True
-initial_connection      = fs_neat_nohidden
+initial_connection      = unconnected
 
 # node add/remove rates
 node_add_prob           = 0.2
@@ -77,6 +77,6 @@ max_stagnation       = 20
 species_elitism      = 2
 
 [DefaultReproduction]
-elitism            = 2
+elitism            = 5
 survival_threshold = 0.2
 
