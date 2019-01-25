@@ -26,11 +26,11 @@ class CommunicatorSet:
 
         self.thread = None
 
-    def createEncoderEvaluator(self, encoded, scores, spectra, species_id):
-        self.evaluator = EncoderEvaluator(encoded, scores, self.genomes, spectra, species_id)
+    def createEncoderEvaluator(self, encoded, scores, spectra, cohesion, species_id):
+        self.evaluator = EncoderEvaluator(encoded, scores, self.genomes, spectra, cohesion, species_id)
 
-    def createDecoderEvaluator(self, encoded, scores, spectra, species_id):
-        self.evaluator = DecoderEvaluator(encoded, scores, self.genomes, spectra, species_id)
+    def createDecoderEvaluator(self, encoded, scores, spectra, cohesion, species_id):
+        self.evaluator = DecoderEvaluator(encoded, scores, self.genomes, spectra, cohesion, species_id)
 
 
 class Species:
@@ -41,15 +41,16 @@ class Species:
         self.encoded = encoded
         self.scores = Queue()
         self.spectra = Queue()
+        self.cohesion = Queue()
 
         self.species_id = Species.counter
         Species.counter += 1
 
         self.encoder = CommunicatorSet(encoder_config)
-        self.encoder.createEncoderEvaluator(self.encoded, self.scores, self.spectra, self.species_id)
+        self.encoder.createEncoderEvaluator(self.encoded, self.scores, self.spectra, self.cohesion, self.species_id)
 
         self.decoder = CommunicatorSet(decoder_config)
-        self.decoder.createDecoderEvaluator(self.encoded.add(), self.scores, self.spectra, self.species_id)
+        self.decoder.createDecoderEvaluator(self.encoded.add(), self.scores, self.spectra, self.cohesion, self.species_id)
 
         print('New species id: %i' %self.species_id)
 

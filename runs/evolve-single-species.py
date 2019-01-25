@@ -56,7 +56,7 @@ def run(config_encoders, config_decoders):
     dec_evaluator = DecoderEvaluator(encoded, scores, decoder_genomes)
 
     # Run for up to 300 generations.
-    n = 4
+    n = 150
     k = 0
     while n is None or k < n:
 

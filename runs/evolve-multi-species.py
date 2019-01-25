@@ -6,7 +6,10 @@ import os
 import random
 from datetime import datetime
 from multiprocessing import Manager, Queue, Process
+from subprocess import CalledProcessError
 from threading import Thread
+
+import numpy as np
 
 import neat
 import visualize
@@ -40,7 +43,7 @@ def run(config_encoders, config_decoders):
     secondSpecies = Species(config_enc, config_dec, encoded)
 
     # Run for up to 300 generations.
-    n = 50
+    n = 150
     k = 0
     while n is None or k < n:
 
@@ -60,6 +63,8 @@ def run(config_encoders, config_decoders):
 
     firstSpecies.spectra.put(False)
     secondSpecies.spectra.put(False)
+    firstSpecies.cohesion.put(False)
+    secondSpecies.cohesion.put(False)
 
     ####################################################################################################################
 
@@ -80,8 +85,12 @@ def run(config_encoders, config_decoders):
 
         # node_names = {-1:'A', -2: 'B', 0:'A XOR B'}
         d = datetime.now()
-        visualize.draw_net(config_enc, s.encoder.population.best_genome, view=False, filename='%s-%i-digraph_enc.gv' %(d.strftime('%y-%m-%d_%H-%M-%S'),i))#, node_names=node_names)
-        visualize.draw_net(config_dec, s.decoder.population.best_genome, view=False, filename='%s-%i-digraph_dec.gv' %(d.strftime('%y-%m-%d_%H-%M-%S'),i))#, node_names=node_names)
+        try:
+            visualize.draw_net(config_enc, s.encoder.population.best_genome, view=False, filename='%s-%i-digraph_enc.gv' %(d.strftime('%y-%m-%d_%H-%M-%S'),i))#, node_names=node_names)
+            visualize.draw_net(config_dec, s.decoder.population.best_genome, view=False, filename='%s-%i-digraph_dec.gv' %(d.strftime('%y-%m-%d_%H-%M-%S'),i))#, node_names=node_names)
+        except CalledProcessError as e:
+            print(e)
+
         visualize.plot_stats(s.encoder.stats, ylog=False, view=True, filename='%s-%i-avg_fitness_enc.svg' %(d.strftime('%y-%m-%d_%H-%M-%S'),i))
         # visualize.plot_species(enc_stats, view=True)
         visualize.plot_stats(s.decoder.stats, ylog=False, view=True, filename='%s-%i-avg_fitness_dec.svg' %(d.strftime('%y-%m-%d_%H-%M-%S'),i))
@@ -100,6 +109,17 @@ def run(config_encoders, config_decoders):
 
         visualize.plot_spectrum(spectra, view=True,
                              filename='%s-%i-spectrum.svg' % (d.strftime('%y-%m-%d_%H-%M-%S'), i))
+
+        # Visualize the cohesion
+        cohesions = []
+        cohesion = s.cohesion.get()
+        while cohesion is not False:
+            cohesions.append(np.average(list(cohesion.values())))
+
+            cohesion = s.cohesion.get()
+
+        visualize.plot_cohesion(cohesions, view=True,
+                                filename='%s-%i-message_cohesion.svg' % (d.strftime('%y-%m-%d_%H-%M-%S'), i))
 
 
 if __name__ == '__main__':

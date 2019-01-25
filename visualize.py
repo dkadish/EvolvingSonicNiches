@@ -135,6 +135,29 @@ def plot_spectrum(spectra, view=False, filename='spectrum.svg'):
 
     plt.close()
 
+def plot_cohesion(cohesion, view=False, filename='message_cohesion.svg'):
+    """ Plots the average distance between the same message for each generation. """
+    if plt is None:
+        warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    generation = range(len(cohesion))
+    cohesion_array = np.array(cohesion)
+
+    plt.plot(generation, cohesion_array, 'b-', label="overall")
+
+    plt.title("Message cohesion by generation")
+    plt.xlabel("Generations")
+    plt.ylabel("Average Distance")
+    plt.grid()
+    plt.legend(loc="best")
+
+    plt.savefig(filename)
+    if view:
+        plt.show()
+
+    plt.close()
+
 
 def draw_net(config, genome, view=False, filename=None, node_names=None, show_disabled=True, prune_unused=False,
              node_colors=None, fmt='svg'):
@@ -168,7 +191,7 @@ def draw_net(config, genome, view=False, filename=None, node_names=None, show_di
     input_attrs = {'style': 'filled',
                    'shape': 'box'}
     with dot.subgraph(name='inputs', node_attr=input_attrs) as in_graph:
-        in_graph.attr(rank='same')
+        in_graph.attr(rank='source')
         for k in config.genome_config.input_keys:
             name = node_names.get(k, str(k))
             inputs.add(k)
@@ -185,7 +208,7 @@ def draw_net(config, genome, view=False, filename=None, node_names=None, show_di
 
     out_attrs = {'style': 'filled'}
     with dot.subgraph(name='outputs', node_attr=out_attrs) as out_graph:
-        out_graph.attr(rank='same')
+        out_graph.attr(rank='sink')
         for k in config.genome_config.output_keys:
             outputs.add(k)
             name = node_names.get(k, str(k))
