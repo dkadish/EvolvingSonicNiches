@@ -11,9 +11,14 @@ from threading import Thread
 
 import numpy as np
 
+from stats import Spectrum
+
+np.set_printoptions(precision=3)
+
 import neat
 import visualize
 from evaluators import EncoderEvaluator, DecoderEvaluator
+from messaging import Message
 from parallel import MultiQueue
 from species import Species
 
@@ -39,21 +44,26 @@ def run(config_encoders, config_decoders):
                          config_decoders)
 
     encoded = MultiQueue()
-    firstSpecies = Species(config_enc, config_dec, encoded, pairwise=False)
-    secondSpecies = Species(config_enc, config_dec, encoded, pairwise=False)
+    messages = MultiQueue()
+    species = [Species(config_enc, config_dec, encoded, messages, pairwise=False) for s in range(2)]
+
+    # Start statistics modules
+    spectrum_stats = Spectrum(messages.add())
+    stats_thread = Thread(target=spectrum_stats.run)
+    stats_thread.start()
 
     # Run for up to 300 generations.
-    n = 150
+    n = 5
     k = 0
     while n is None or k < n:
 
         k += 1
 
-        firstSpecies.start()
-        secondSpecies.start()
+        for s in species:
+            s.start()
 
-        firstSpecies.join()
-        secondSpecies.join()
+        for s in species:
+            s.join()
 
         # if enc.config.no_fitness_termination:
         #     enc.reporters.found_solution(enc.config, enc.generation, enc.best_genome)
@@ -61,16 +71,20 @@ def run(config_encoders, config_decoders):
         # if dec.config.no_fitness_termination:
         #     dec.reporters.found_solution(enc.config, dec.generation, dec.best_genome)
 
-    firstSpecies.spectra.put(False)
-    secondSpecies.spectra.put(False)
-    firstSpecies.cohesion.put(False)
-    secondSpecies.cohesion.put(False)
-    firstSpecies.decoding_scores.put(False)
-    secondSpecies.decoding_scores.put(False)
+    for s in species:
+        s.spectra.put(Message.Finished(s.species_id))
+        s.cohesion.put(False)
+        s.decoding_scores.put(False)
+
+    spectrum_stats.done()
+    stats_thread.join()
 
     ####################################################################################################################
 
-    for i,s in enumerate([firstSpecies, secondSpecies]):
+    vmin = 0
+    vmax = 3000
+
+    for i,s in enumerate(species):
         print('Stats for Species %i' % (i + 1))
         # Display the winning genome.
         print('\nBest {} genome:\n{!s}'.format(i, s.encoder.population.best_genome))
@@ -83,17 +97,17 @@ def run(config_encoders, config_decoders):
         for input in inputs[:3]:
             output_enc = winner_net_enc.activate(input)
             output_dec = winner_net_dec.activate(output_enc)
-            print("Input {!r} -> {!r} -> {!r} Output".format(input, output_enc, output_dec))
+            print("Input {!r} -> {!r} -> {!r} Output".format(input, np.array(output_enc), np.array(output_dec)))
 
         # node_names = {-1:'A', -2: 'B', 0:'A XOR B'}
         d = datetime.now()
         try:
-            visualize.draw_net(config_enc, s.encoder.population.best_genome, view=False,
-                               filename='%s-%i-digraph_enc.gv' % (
-                               d.strftime('%y-%m-%d_%H-%M-%S'), i))  # , node_names=node_names)
-            visualize.draw_net(config_dec, s.decoder.population.best_genome, view=False,
-                               filename='%s-%i-digraph_dec.gv' % (
-                               d.strftime('%y-%m-%d_%H-%M-%S'), i))  # , node_names=node_names)
+            # visualize.draw_net(config_enc, s.encoder.population.best_genome, view=False,
+            #                    filename='%s-%i-digraph_enc.gv' % (
+            #                    d.strftime('%y-%m-%d_%H-%M-%S'), i))  # , node_names=node_names)
+            # visualize.draw_net(config_dec, s.decoder.population.best_genome, view=False,
+            #                    filename='%s-%i-digraph_dec.gv' % (
+            #                    d.strftime('%y-%m-%d_%H-%M-%S'), i))  # , node_names=node_names)
             visualize.draw_net(config_dec, s.decoder.population.best_genome, view=False, prune_unused=True,
                                show_disabled=False, filename='%s-%i-digraph_dec_pruned.gv' % (
                 d.strftime('%y-%m-%d_%H-%M-%S'), i))  # , node_names=node_names)
@@ -116,14 +130,9 @@ def run(config_encoders, config_decoders):
         # p.run(eval_genomes, 10)
 
         # Visualize the spectra
-        spectra = []
-        spectrum = s.spectra.get()
-        while spectrum is not False:
-            spectra.append(spectrum)
+        spectra = spectrum_stats.spectra[s.species_id]
 
-            spectrum = s.spectra.get()
-
-        visualize.plot_spectrum(spectra, view=True,
+        visualize.plot_spectrum(spectra, view=True, vmin=vmin, vmax=vmax,
                              filename='%s-%i-spectrum.svg' % (d.strftime('%y-%m-%d_%H-%M-%S'), i))
 
         # Visualize the cohesion

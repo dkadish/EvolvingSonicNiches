@@ -112,7 +112,7 @@ def plot_species(statistics, view=False, filename='speciation.svg'):
 
     plt.close()
 
-def plot_spectrum(spectra, view=False, filename='spectrum.svg'):
+def plot_spectrum(spectra, view=False, vmin=None, vmax=None, filename='spectrum.svg'):
     """ Plots the population's average and best fitness. """
     if plt is None:
         warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
@@ -120,7 +120,7 @@ def plot_spectrum(spectra, view=False, filename='spectrum.svg'):
 
     spectra = np.array(spectra).T
     fig, ax = plt.subplots()
-    p = ax.pcolormesh(spectra, cmap='bone')
+    p = ax.pcolormesh(spectra, cmap='rainbow', vmin=vmin, vmax=vmax)
     fig.colorbar(p,ax=ax)
 
     plt.title("Use of the communication spectrum by generation")
@@ -151,9 +151,10 @@ def plot_cohesion(cohesion, loudness_avg, loudness_std, view=False, filename='me
     ax2.plot(generation, loudness_avg, 'g-', label="loudness")
     ax2.fill_between(generation, loudness_avg - loudness_std, loudness_avg + loudness_std, facecolor='green', alpha=0.25)
 
-    plt.title("Message cohesion by generation")
+    plt.title("Message Difference and Loudness")
     plt.xlabel("Generations")
-    plt.ylabel("Average Distance")
+    ax1.set_ylabel("Distance")
+    ax2.set_ylabel("Loudness")
     plt.grid()
     plt.legend(loc="best")
 
@@ -201,7 +202,7 @@ def plot_scores(species_avg, species_std, bits_avg, bits_std, total_avg, total_s
     plt.close()
 
 def draw_net(config, genome, view=False, filename=None, node_names=None, show_disabled=True, prune_unused=False,
-             node_colors=None, fmt='svg'):
+             prune_disconnected=False, node_colors=None, fmt='svg'):
     """ Receives a genome and draws a neural network with arbitrary topology. """
     # Attributes for network nodes.
     if graphviz is None:

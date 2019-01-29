@@ -7,18 +7,20 @@ import numpy as np
 from scipy.spatial.distance import cdist
 
 import neat
+from messaging import Message
 
 N_MESSAGES = 10
 
 
 class BaseEvaluator:
 
-    def __init__(self, encoded: Queue, scores: Queue, genomes: Queue, spectra: Queue, cohesion: Queue,
+    def __init__(self, encoded: Queue, messages: Queue, scores: Queue, genomes: Queue, spectra: Queue, cohesion: Queue,
                  decoding_scores: Queue, species_id=0):
         # self.messages = messages
 
         # self.encoded Format: (genome id, original message, encoded message)
         self.encoded = encoded
+        self.messages = messages
 
         # self.scores Format: (genome id, score)
         self.scores = scores
@@ -58,29 +60,31 @@ class EncoderEvaluator(BaseEvaluator):
                     range(len(genomes))]
 
         # Save spectral information about messages
-        spectra = None
+        # spectra = None
         message_loudness = []
         message_cohesion = {}
 
         # Create the NNs and encode the messages
         for i, (genome_id, genome) in enumerate(genomes):
             net = neat.nn.FeedForwardNetwork.create(genome, config)
-            if spectra is None:
-                spectra = [0 for s in range(len(net.output_nodes))]
+            # if spectra is None:
+            #     spectra = [0 for s in range(len(net.output_nodes))]
             for original_message in messages[i]:
                 encoded_message = net.activate(original_message)
                 message_loudness.extend(encoded_message)
-                spectra = [s + e for s, e in zip(spectra, encoded_message)]
+                # spectra = [s + e for s, e in zip(spectra, encoded_message)]
                 if original_message not in message_cohesion:
                     message_cohesion[original_message] = []
                 message_cohesion[original_message].append(encoded_message)
                 self.encoded.put((self.species_id, genome_id, original_message, encoded_message))
+                self.messages.put(Message.Encoded(self.species_id, genome_id, original_message, encoded_message))
 
         # Send Finished Message
         self.encoded.put(False)
+        self.messages.put(Message.Generation(self.species_id))
 
         # Send the spectra back
-        self.spectra.put(spectra)
+        # self.spectra.put(spectra)
 
         # Evaluate the distance between messages
         # TODO This should be implemented somewhere else that listens to the environment, using the multiqueue.
