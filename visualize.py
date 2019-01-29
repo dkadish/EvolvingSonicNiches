@@ -135,7 +135,7 @@ def plot_spectrum(spectra, view=False, filename='spectrum.svg'):
 
     plt.close()
 
-def plot_cohesion(cohesion, view=False, filename='message_cohesion.svg'):
+def plot_cohesion(cohesion, loudness_avg, loudness_std, view=False, filename='message_cohesion.svg'):
     """ Plots the average distance between the same message for each generation. """
     if plt is None:
         warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
@@ -144,7 +144,12 @@ def plot_cohesion(cohesion, view=False, filename='message_cohesion.svg'):
     generation = range(len(cohesion))
     cohesion_array = np.array(cohesion)
 
-    plt.plot(generation, cohesion_array, 'b-', label="overall")
+    fig, ax1 = plt.subplots()
+    ax2 = ax1.twinx()
+
+    ax1.plot(generation, cohesion_array, 'b-', label="overall")
+    ax2.plot(generation, loudness_avg, 'g-', label="loudness")
+    ax2.fill_between(generation, loudness_avg - loudness_std, loudness_avg + loudness_std, facecolor='green', alpha=0.25)
 
     plt.title("Message cohesion by generation")
     plt.xlabel("Generations")
@@ -158,6 +163,42 @@ def plot_cohesion(cohesion, view=False, filename='message_cohesion.svg'):
 
     plt.close()
 
+
+def plot_scores(species_avg, species_std, bits_avg, bits_std, total_avg, total_std, view=False, filename='scores.svg'):
+    """ Plots the population's average and best fitness. """
+    if plt is None:
+        warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    generation = range(len(species_avg))
+
+
+    plt.plot(generation, species_avg, 'b-', label="species")
+    # plt.plot(generation, species_avg - species_std, 'g-.', label="-1 sd")
+    # plt.plot(generation, species_avg + species_std, 'g-.', label="+1 sd")
+    plt.fill_between(generation, species_avg - species_std, species_avg + species_std, facecolor='blue', alpha=0.5)
+
+    plt.plot(generation, bits_avg, 'r-', label="bits")
+    # plt.plot(generation, bits_avg - bits_std, 'g-.', label="-1 sd")
+    # plt.plot(generation, bits_avg + bits_std, 'g-.', label="+1 sd")
+    plt.fill_between(generation, bits_avg - bits_std, bits_avg + bits_std, facecolor='red', alpha=0.5)
+
+    plt.plot(generation, total_avg, 'g-', label="total")
+    # plt.plot(generation, total_avg - total_std, 'g-.', label="-1 sd")
+    # plt.plot(generation, total_avg + total_std, 'g-.', label="+1 sd")
+    plt.fill_between(generation, total_avg - total_std, total_avg + total_std, facecolor='green', alpha=0.5)
+
+    plt.title("Scores by generation")
+    plt.xlabel("Generations")
+    plt.ylabel("Scores")
+    plt.grid()
+    plt.legend(loc="best")
+
+    plt.savefig(filename)
+    if view:
+        plt.show()
+
+    plt.close()
 
 def draw_net(config, genome, view=False, filename=None, node_names=None, show_disabled=True, prune_unused=False,
              node_colors=None, fmt='svg'):
@@ -225,7 +266,8 @@ def draw_net(config, genome, view=False, filename=None, node_names=None, show_di
         connections = set()
         for cg in genome.connections.values():
             if cg.enabled or show_disabled:
-                connections.add((cg.in_node_id, cg.out_node_id))
+                input, output = cg.key
+                connections.add((input, output))
 
         used_nodes = copy.copy(outputs)
         pending = copy.copy(outputs)

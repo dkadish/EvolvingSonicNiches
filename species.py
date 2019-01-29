@@ -2,7 +2,7 @@ from multiprocessing import Queue
 from threading import Thread
 
 import neat
-from evaluators import EncoderEvaluator, DecoderEvaluator
+from evaluators import EncoderEvaluator, DecoderEvaluator, PairwiseDecoderEvaluator
 from parallel import MultiQueue
 
 
@@ -26,31 +26,39 @@ class CommunicatorSet:
 
         self.thread = None
 
-    def createEncoderEvaluator(self, encoded, scores, spectra, cohesion, species_id):
-        self.evaluator = EncoderEvaluator(encoded, scores, self.genomes, spectra, cohesion, species_id)
+    def createEncoderEvaluator(self, encoded, scores, spectra, cohesion, decoding_scores, species_id):
+        self.evaluator = EncoderEvaluator(encoded, scores, self.genomes, spectra, cohesion, decoding_scores, species_id)
 
-    def createDecoderEvaluator(self, encoded, scores, spectra, cohesion, species_id):
-        self.evaluator = DecoderEvaluator(encoded, scores, self.genomes, spectra, cohesion, species_id)
+    def createDecoderEvaluator(self, encoded, scores, spectra, cohesion, decoding_scores, species_id):
+        self.evaluator = DecoderEvaluator(encoded, scores, self.genomes, spectra, cohesion, decoding_scores, species_id)
+
+    def createPairwireDecoderEvaluator(self, encoded, scores, spectra, cohesion, decoding_scores, species_id):
+        self.evaluator = PairwiseDecoderEvaluator(encoded, scores, self.genomes, spectra, cohesion, decoding_scores, species_id)
 
 
 class Species:
 
     counter = 0
 
-    def __init__(self, encoder_config, decoder_config, encoded: MultiQueue):
+    def __init__(self, encoder_config, decoder_config, encoded: MultiQueue, pairwise=False):
         self.encoded = encoded
         self.scores = Queue()
         self.spectra = Queue()
         self.cohesion = Queue()
+        self.decoding_scores = Queue()
 
         self.species_id = Species.counter
         Species.counter += 1
 
         self.encoder = CommunicatorSet(encoder_config)
-        self.encoder.createEncoderEvaluator(self.encoded, self.scores, self.spectra, self.cohesion, self.species_id)
+        self.encoder.createEncoderEvaluator(self.encoded, self.scores, self.spectra, self.cohesion, self.decoding_scores, self.species_id)
 
-        self.decoder = CommunicatorSet(decoder_config)
-        self.decoder.createDecoderEvaluator(self.encoded.add(), self.scores, self.spectra, self.cohesion, self.species_id)
+        if not pairwise:
+            self.decoder = CommunicatorSet(decoder_config)
+            self.decoder.createDecoderEvaluator(self.encoded.add(), self.scores, self.spectra, self.cohesion, self.decoding_scores, self.species_id)
+        else:
+            self.decoder = CommunicatorSet(decoder_config)
+            self.decoder.createPairwireDecoderEvaluator(self.encoded.add(), self.scores, self.spectra, self.cohesion, self.decoding_scores, self.species_id)
 
         print('New species id: %i' %self.species_id)
 
