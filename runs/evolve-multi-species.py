@@ -39,8 +39,8 @@ def run(config_encoders, config_decoders):
                          config_decoders)
 
     encoded = MultiQueue()
-    firstSpecies = Species(config_enc, config_dec, encoded, pairwise=True)
-    secondSpecies = Species(config_enc, config_dec, encoded, pairwise=True)
+    firstSpecies = Species(config_enc, config_dec, encoded, pairwise=False)
+    secondSpecies = Species(config_enc, config_dec, encoded, pairwise=False)
 
     # Run for up to 300 generations.
     n = 150
