@@ -162,7 +162,10 @@ class DecoderEvaluator(BaseEvaluator):
                 correctly identified as a match and all three bits were correct.
                 '''
 
-                decided_same = bool(round(decoded_message[-1]))  # NN thinks its from the same species
+                # Ensure decoded_message is between 0 and 1
+                decoded_message = np.clip(decoded_message, 0, 1)
+
+                decided_same = decoded_message[-1] >= 0.5  # NN thinks its from the same species
                 is_same = enc_species_id == self.species_id  # It is from the same species
                 decided_correct = decided_same == is_same  # The decision was correct
                 fitness = 1 - abs(int(is_same) - decoded_message[-1])
@@ -172,14 +175,13 @@ class DecoderEvaluator(BaseEvaluator):
                 else:
                     species_scores[genome_id].append(0)
 
-                # FIXME: This is wrong! It was merged and the scoring is for [-1,1] not [0,1]
                 if is_same:  # This is the same species
                     if decided_same:
                         bit_score = 3 - sum([abs(o - round(d)) for o, d in zip(original_message, decoded_message)])
                         bit_scores[genome_id].append(bit_score / 3)
                         total_scores[genome_id].append(bit_score == 3 and 1 or 0)
 
-                        fitness += 2 * (3 - sum([abs(o - d) for o, d in zip(original_message, decoded_message)]))
+                        fitness += (3 - sum([abs(o - d) for o, d in zip(original_message, decoded_message)]))
 
                     # Pass the score back for the encoder
                     encoder_fitness[enc_genome_id] += fitness
