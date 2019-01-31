@@ -33,7 +33,6 @@ class EncodedStatsBase:
 
     def done(self):
         self.messages.put(Message.Finished())
-        pass
 
 class Spectrum(EncodedStatsBase):
 
@@ -62,9 +61,6 @@ class Spectrum(EncodedStatsBase):
 
         species = message.species_id
         self.spectra[species].append(np.zeros(self.n_spectra))
-
-    def handle_finish(self):
-        pass
 
 
 class Loudness(EncodedStatsBase):
@@ -152,3 +148,4 @@ class Cohesion(EncodedStatsBase):
 
         self.avg[species].append(np.average(distances))
         self.std[species].append(np.std(distances))
+        self.cohesion[species] = {}

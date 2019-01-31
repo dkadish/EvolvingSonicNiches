@@ -2,10 +2,10 @@
 """
 
 from __future__ import print_function
+
 import os
-import random
 from datetime import datetime
-from multiprocessing import Manager, Queue, Process
+from itertools import chain
 from subprocess import CalledProcessError
 from threading import Thread
 
@@ -17,8 +17,6 @@ np.set_printoptions(precision=3)
 
 import neat
 import visualize
-from evaluators import EncoderEvaluator, DecoderEvaluator
-from messaging import Message, MessageType
 from parallel import MultiQueue
 from species import Species
 
@@ -31,21 +29,22 @@ inputs = [[0, 0, 0],
           [1, 1, 1],
           [0, 1, 1]]
 
-N_MESSAGES = 10 # Number of messages to test on each individual in each evolutionary cycle
+N_MESSAGES = 10  # Number of messages to test on each individual in each evolutionary cycle
 
 
 def run(config_encoders, config_decoders):
     # Load configuration.
     config_enc = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
-                         neat.DefaultSpeciesSet, neat.DefaultStagnation,
-                         config_encoders)
+                             neat.DefaultSpeciesSet, neat.DefaultStagnation,
+                             config_encoders)
     config_dec = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
-                         neat.DefaultSpeciesSet, neat.DefaultStagnation,
-                         config_decoders)
+                             neat.DefaultSpeciesSet, neat.DefaultStagnation,
+                             config_decoders)
 
-    encoded = MultiQueue()
+    # encoded = MultiQueue()
     messages = MultiQueue()
-    species = [Species(config_enc, config_dec, encoded, messages, pairwise=False) for s in range(2)]
+    species = [Species(config_enc, config_dec, #encoded,
+                       messages, pairwise=False) for s in range(2)]
 
     # Start statistics modules
     spectrum_stats = Spectrum(messages.add())
@@ -59,7 +58,7 @@ def run(config_encoders, config_decoders):
     loudness_thread.start()
 
     # Run for up to 300 generations.
-    n = 5
+    n = 100
     k = 0
     while n is None or k < n:
 
@@ -78,8 +77,6 @@ def run(config_encoders, config_decoders):
         #     dec.reporters.found_solution(enc.config, dec.generation, dec.best_genome)
 
     for s in species:
-        # s.spectra.put(Message.Finished(s.species_id))
-        # s.cohesion.put(Message.Finished(s.species_id))
         s.decoding_scores.put(False)
 
     print('Spectrum Stats...')
@@ -96,7 +93,7 @@ def run(config_encoders, config_decoders):
 
     vmin = 0
 
-    for i,s in enumerate(species):
+    for i, s in enumerate(species):
         print('Stats for Species %i' % (i + 1))
         # Display the winning genome.
         print('\nBest {} genome:\n{!s}'.format(i, s.encoder.population.best_genome))
@@ -111,21 +108,20 @@ def run(config_encoders, config_decoders):
             output_dec = winner_net_dec.activate(output_enc)
             print("Input {!r} -> {!r} -> {!r} Output".format(input, np.array(output_enc), np.array(output_dec)))
 
-        # node_names = {-1:'A', -2: 'B', 0:'A XOR B'}
+        node_names_enc = dict(zip(chain(range(-1,-4,-1),range(0,9)),chain(range(0,3),range(0,9))))
+        node_names_dec = dict(zip(chain(range(-1,-10,-1),range(0,4)),chain(range(0,9),range(0,3),['S'])))
+
+        for n in node_names_dec: node_names_dec[n] = str(node_names_dec[n])
+        for n in node_names_enc: node_names_enc[n] = str(node_names_enc[n])
+
         d = datetime.now()
         try:
-            # visualize.draw_net(config_enc, s.encoder.population.best_genome, view=False,
-            #                    filename='%s-%i-digraph_enc.gv' % (
-            #                    d.strftime('%y-%m-%d_%H-%M-%S'), i))  # , node_names=node_names)
-            # visualize.draw_net(config_dec, s.decoder.population.best_genome, view=False,
-            #                    filename='%s-%i-digraph_dec.gv' % (
-            #                    d.strftime('%y-%m-%d_%H-%M-%S'), i))  # , node_names=node_names)
             visualize.draw_net(config_dec, s.decoder.population.best_genome, view=False, prune_unused=True,
                                show_disabled=False, filename='%s-%i-digraph_dec_pruned.gv' % (
-                d.strftime('%y-%m-%d_%H-%M-%S'), i))  # , node_names=node_names)
+                    d.strftime('%y-%m-%d_%H-%M-%S'), i))#, node_names=node_names_dec)
             visualize.draw_net(config_enc, s.encoder.population.best_genome, view=False, prune_unused=True,
                                show_disabled=False, filename='%s-%i-digraph_enc_pruned.gv' % (
-                d.strftime('%y-%m-%d_%H-%M-%S'), i))  # , node_names=node_names)
+                    d.strftime('%y-%m-%d_%H-%M-%S'), i))#, node_names=node_names_enc)
         except CalledProcessError as e:
             print(e)
 
@@ -146,7 +142,7 @@ def run(config_encoders, config_decoders):
         spectra = spectrum_stats.spectra[s.species_id]
 
         visualize.plot_spectrum(spectra, view=True, vmin=vmin, vmax=max_spectrum,
-                             filename='%s-%i-spectrum.svg' % (d.strftime('%y-%m-%d_%H-%M-%S'), i))
+                                filename='%s-%i-spectrum.svg' % (d.strftime('%y-%m-%d_%H-%M-%S'), i))
 
         # Visualize the cohesion
         # cohesions = []

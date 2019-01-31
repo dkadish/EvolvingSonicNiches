@@ -7,19 +7,20 @@ import numpy as np
 from scipy.spatial.distance import cdist
 
 import neat
-from messaging import Message
+from messaging import Message, MessageType
 
 N_MESSAGES = 10
 
 
 class BaseEvaluator:
 
-    def __init__(self, encoded: Queue, messages: Queue, scores: Queue, genomes: Queue, #spectra: Queue, cohesion: Queue,
+    def __init__(self, #encoded: Queue,
+                 messages: Queue, scores: Queue, genomes: Queue, #spectra: Queue, cohesion: Queue,
                  decoding_scores: Queue, species_id=0):
         # self.messages = messages
 
         # self.encoded Format: (genome id, original message, encoded message)
-        self.encoded = encoded
+        # self.encoded = encoded
         self.messages = messages
 
         # self.scores Format: (genome id, score)
@@ -28,8 +29,6 @@ class BaseEvaluator:
 
         self.process = None
 
-        # self.spectra = spectra
-        # self.cohesion = cohesion
         self.decoding_scores = decoding_scores
 
         self.species_id = species_id  # For identifying members of the same species in multispecies processes.
@@ -59,47 +58,18 @@ class EncoderEvaluator(BaseEvaluator):
         messages = [[tuple([int(random.random() > 0.5) for i in range(3)]) for j in range(N_MESSAGES)] for k in
                     range(len(genomes))]
 
-        # Save spectral information about messages
-        # spectra = None
-        # message_loudness = []
-        # message_cohesion = {}
 
         # Create the NNs and encode the messages
         for i, (genome_id, genome) in enumerate(genomes):
             net = neat.nn.FeedForwardNetwork.create(genome, config)
-            # if spectra is None:
-            #     spectra = [0 for s in range(len(net.output_nodes))]
             for original_message in messages[i]:
                 encoded_message = net.activate(original_message)
-                # message_loudness.extend(encoded_message)
-                # spectra = [s + e for s, e in zip(spectra, encoded_message)]
-                # if original_message not in message_cohesion:
-                #     message_cohesion[original_message] = []
-                # message_cohesion[original_message].append(encoded_message)
-                self.encoded.put((self.species_id, genome_id, original_message, encoded_message))
+                # self.encoded.put((self.species_id, genome_id, original_message, encoded_message))
                 self.messages.put(Message.Encoded(self.species_id, genome_id, original_message, encoded_message))
 
         # Send Finished Message
-        self.encoded.put(False)
+        # self.encoded.put(False) # FIXME encorporate into messages
         self.messages.put(Message.Generation(self.species_id))
-
-        # Send the spectra back
-        # self.spectra.put(spectra)
-
-        # Evaluate the distance between messages
-        # TODO This should be implemented somewhere else that listens to the environment, using the multiqueue.
-        # mc_score = {}
-        # mc_loudness = {}  # FIXME This has nothing to do with message cohesion
-        # for m in message_cohesion:
-        #     mc = np.array(message_cohesion[m])
-        #     distances = cdist(mc, mc)
-        #
-        #     mc_score[m] = np.average(distances)
-
-        # mc_loudness['avg'] = np.average(np.abs(message_loudness))
-        # mc_loudness['std'] = np.std(np.abs(message_loudness))
-
-        # self.cohesion.put([mc_score])#, mc_loudness])
 
         # Wait for the scores from the decoders and evaluate
         scores = self.scores.get()
@@ -127,9 +97,12 @@ class DecoderEvaluator(BaseEvaluator):
         false_count = 0
 
         # Wait for encoded messages from encoders
-        encoded_tuple = self.encoded.get()  # Assume the first one isn't false
-        while True:
-            enc_species_id, enc_genome_id, original_message, encoded_message = encoded_tuple
+        message = self.messages.get()  # Assume the first one isn't false
+        while message.type != MessageType.FINISHED:
+            enc_species_id = message.species_id
+            enc_genome_id = message.message['genome_id']
+            original_message = message.message['original']
+            encoded_message = message.message['encoded']
 
             # Update available species IDs, test for completeness
             if enc_species_id not in species_ids:
@@ -193,16 +166,17 @@ class DecoderEvaluator(BaseEvaluator):
                 # Register the score for the genome
                 genome.fitness += fitness
 
-            encoded_tuple = self.encoded.get()
+            message = self.messages.get()
+
             do_break = False
-            while encoded_tuple is False:
+            while message.type == MessageType.GENERATION:
                 false_count += 1
                 if false_count == len(species_ids):
                     print('Stopped with %i False values' % false_count)
                     print(species_ids)
                     do_break = True
                     break
-                encoded_tuple = self.encoded.get()
+                message = self.messages.get()
             if do_break:
                 break
 
