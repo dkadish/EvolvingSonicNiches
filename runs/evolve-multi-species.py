@@ -11,14 +11,14 @@ from threading import Thread
 
 import numpy as np
 
-from stats import Spectrum
+from stats import Spectrum, Cohesion, Loudness
 
 np.set_printoptions(precision=3)
 
 import neat
 import visualize
 from evaluators import EncoderEvaluator, DecoderEvaluator
-from messaging import Message
+from messaging import Message, MessageType
 from parallel import MultiQueue
 from species import Species
 
@@ -49,8 +49,14 @@ def run(config_encoders, config_decoders):
 
     # Start statistics modules
     spectrum_stats = Spectrum(messages.add())
-    stats_thread = Thread(target=spectrum_stats.run)
-    stats_thread.start()
+    cohesion_stats = Cohesion(messages.add())
+    loudness_stats = Loudness(messages.add())
+    spectrum_thread = Thread(target=spectrum_stats.run)
+    cohesion_thread = Thread(target=cohesion_stats.run)
+    loudness_thread = Thread(target=loudness_stats.run)
+    spectrum_thread.start()
+    cohesion_thread.start()
+    loudness_thread.start()
 
     # Run for up to 300 generations.
     n = 5
@@ -72,17 +78,23 @@ def run(config_encoders, config_decoders):
         #     dec.reporters.found_solution(enc.config, dec.generation, dec.best_genome)
 
     for s in species:
-        s.spectra.put(Message.Finished(s.species_id))
-        s.cohesion.put(False)
+        # s.spectra.put(Message.Finished(s.species_id))
+        # s.cohesion.put(Message.Finished(s.species_id))
         s.decoding_scores.put(False)
 
+    print('Spectrum Stats...')
     spectrum_stats.done()
-    stats_thread.join()
+    spectrum_thread.join()
+    print('Cohesion Stats...')
+    cohesion_stats.done()
+    cohesion_thread.join()
+    print('Loudness Stats...')
+    loudness_stats.done()
+    loudness_thread.join()
 
     ####################################################################################################################
 
     vmin = 0
-    vmax = 3000
 
     for i,s in enumerate(species):
         print('Stats for Species %i' % (i + 1))
@@ -130,25 +142,29 @@ def run(config_encoders, config_decoders):
         # p.run(eval_genomes, 10)
 
         # Visualize the spectra
+        max_spectrum = max([np.max(np.array(spectrum_stats.spectra[s])) for s in spectrum_stats.spectra])
         spectra = spectrum_stats.spectra[s.species_id]
 
-        visualize.plot_spectrum(spectra, view=True, vmin=vmin, vmax=vmax,
+        visualize.plot_spectrum(spectra, view=True, vmin=vmin, vmax=max_spectrum,
                              filename='%s-%i-spectrum.svg' % (d.strftime('%y-%m-%d_%H-%M-%S'), i))
 
         # Visualize the cohesion
-        cohesions = []
-        loudness_avg = []
-        loudness_std = []
-        cohesion_array = s.cohesion.get()
-        while cohesion_array is not False:
-            cohesion, loudness = cohesion_array
-            cohesions.append(np.average(list(cohesion.values())))
-            loudness_avg.append(loudness['avg'])
-            loudness_std.append(loudness['std'])
+        # cohesions = []
+        # loudness_avg = []
+        # loudness_std = []
+        # cohesion_array = s.cohesion.get()
+        # while cohesion_array is not False:
+        #     cohesion, loudness = cohesion_array
+        #     cohesions.append(np.average(list(cohesion.values())))
+        #     loudness_avg.append(loudness['avg'])
+        #     loudness_std.append(loudness['std'])
+        #
+        #     cohesion_array = s.cohesion.get()
 
-            cohesion_array = s.cohesion.get()
+        cohesion = [np.array(cohesion_stats.avg[s.species_id]), np.array(cohesion_stats.std[s.species_id])]
+        loudness = [np.array(loudness_stats.avg[s.species_id]), np.array(loudness_stats.std[s.species_id])]
 
-        visualize.plot_cohesion(cohesions, np.array(loudness_avg), np.array(loudness_std), view=True,
+        visualize.plot_cohesion(cohesion[0], cohesion[1], loudness[0], loudness[1], view=True,
                                 filename='%s-%i-message_cohesion.svg' % (d.strftime('%y-%m-%d_%H-%M-%S'), i))
 
         # Visualize the scores

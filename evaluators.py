@@ -14,7 +14,7 @@ N_MESSAGES = 10
 
 class BaseEvaluator:
 
-    def __init__(self, encoded: Queue, messages: Queue, scores: Queue, genomes: Queue, spectra: Queue, cohesion: Queue,
+    def __init__(self, encoded: Queue, messages: Queue, scores: Queue, genomes: Queue, #spectra: Queue, cohesion: Queue,
                  decoding_scores: Queue, species_id=0):
         # self.messages = messages
 
@@ -28,8 +28,8 @@ class BaseEvaluator:
 
         self.process = None
 
-        self.spectra = spectra
-        self.cohesion = cohesion
+        # self.spectra = spectra
+        # self.cohesion = cohesion
         self.decoding_scores = decoding_scores
 
         self.species_id = species_id  # For identifying members of the same species in multispecies processes.
@@ -61,8 +61,8 @@ class EncoderEvaluator(BaseEvaluator):
 
         # Save spectral information about messages
         # spectra = None
-        message_loudness = []
-        message_cohesion = {}
+        # message_loudness = []
+        # message_cohesion = {}
 
         # Create the NNs and encode the messages
         for i, (genome_id, genome) in enumerate(genomes):
@@ -71,11 +71,11 @@ class EncoderEvaluator(BaseEvaluator):
             #     spectra = [0 for s in range(len(net.output_nodes))]
             for original_message in messages[i]:
                 encoded_message = net.activate(original_message)
-                message_loudness.extend(encoded_message)
+                # message_loudness.extend(encoded_message)
                 # spectra = [s + e for s, e in zip(spectra, encoded_message)]
-                if original_message not in message_cohesion:
-                    message_cohesion[original_message] = []
-                message_cohesion[original_message].append(encoded_message)
+                # if original_message not in message_cohesion:
+                #     message_cohesion[original_message] = []
+                # message_cohesion[original_message].append(encoded_message)
                 self.encoded.put((self.species_id, genome_id, original_message, encoded_message))
                 self.messages.put(Message.Encoded(self.species_id, genome_id, original_message, encoded_message))
 
@@ -88,18 +88,18 @@ class EncoderEvaluator(BaseEvaluator):
 
         # Evaluate the distance between messages
         # TODO This should be implemented somewhere else that listens to the environment, using the multiqueue.
-        mc_score = {}
-        mc_loudness = {}  # FIXME This has nothing to do with message cohesion
-        for m in message_cohesion:
-            mc = np.array(message_cohesion[m])
-            distances = cdist(mc, mc)
+        # mc_score = {}
+        # mc_loudness = {}  # FIXME This has nothing to do with message cohesion
+        # for m in message_cohesion:
+        #     mc = np.array(message_cohesion[m])
+        #     distances = cdist(mc, mc)
+        #
+        #     mc_score[m] = np.average(distances)
 
-            mc_score[m] = np.average(distances)
+        # mc_loudness['avg'] = np.average(np.abs(message_loudness))
+        # mc_loudness['std'] = np.std(np.abs(message_loudness))
 
-        mc_loudness['avg'] = np.average(np.abs(message_loudness))
-        mc_loudness['std'] = np.std(np.abs(message_loudness))
-
-        self.cohesion.put([mc_score, mc_loudness])
+        # self.cohesion.put([mc_score])#, mc_loudness])
 
         # Wait for the scores from the decoders and evaluate
         scores = self.scores.get()

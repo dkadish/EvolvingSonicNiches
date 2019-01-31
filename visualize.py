@@ -135,19 +135,20 @@ def plot_spectrum(spectra, view=False, vmin=None, vmax=None, filename='spectrum.
 
     plt.close()
 
-def plot_cohesion(cohesion, loudness_avg, loudness_std, view=False, filename='message_cohesion.svg'):
+def plot_cohesion(cohesion_avg, cohesion_std, loudness_avg, loudness_std, view=False, filename='message_cohesion.svg'):
     """ Plots the average distance between the same message for each generation. """
     if plt is None:
         warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
         return
 
-    generation = range(len(cohesion))
-    cohesion_array = np.array(cohesion)
+    generation = range(len(cohesion_avg))
+    cohesion_array = np.array(cohesion_avg)
 
     fig, ax1 = plt.subplots()
     ax2 = ax1.twinx()
 
     ax1.plot(generation, cohesion_array, 'b-', label="overall")
+    ax1.fill_between(generation, cohesion_avg - cohesion_std, cohesion_avg + cohesion_std, facecolor='blue', alpha=0.25)
     ax2.plot(generation, loudness_avg, 'g-', label="loudness")
     ax2.fill_between(generation, loudness_avg - loudness_std, loudness_avg + loudness_std, facecolor='green', alpha=0.25)
 

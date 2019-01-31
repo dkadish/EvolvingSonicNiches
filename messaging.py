@@ -14,7 +14,7 @@ class Message:
         self.message = None
 
     @classmethod
-    def Finished(cls, species_id):
+    def Finished(cls, species_id=None):
         return Message(species_id, MessageType.FINISHED)
 
     @classmethod
