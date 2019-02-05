@@ -75,8 +75,8 @@ class Loudness(EncodedStatsBase):
     def handle_message(self, message):
         '''Add message to list for generation
 
-        :param message:
-        :return:
+        :param Message message: The message to process
+        :return: None
         '''
         super(Loudness, self).handle_message(message)
 
@@ -119,10 +119,11 @@ class Cohesion(EncodedStatsBase):
     def handle_message(self, message: Message):
         '''Handles individual messages for the Cohesion Statistics module.
 
-        Messages
+        Adds the incoming message to a dict consisting of ``{ original message: [encoded message, ] }``.
+        This structure is reset every generation.
 
         :param messaging.Message message: The message to process.
-        :return:
+        :return: None
         '''
         super(Cohesion, self).handle_message(message)
 
@@ -137,6 +138,16 @@ class Cohesion(EncodedStatsBase):
         self.cohesion[species][original].append(encoded)
 
     def handle_generation(self, message):
+        '''Handles the end of a generation for cohesion stats.
+
+        Records the avg and std of the distances between encodings of the same message within a species and generation.
+        Finds the distance matrix for all encoded messages of the same species/generation/original.
+
+        :todo Should this be weighted?:
+
+        :param message:
+        :return:
+        '''
         super(Cohesion, self).handle_generation(message)
 
         species = message.species_id
