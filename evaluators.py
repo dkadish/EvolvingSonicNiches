@@ -149,8 +149,15 @@ class DecoderEvaluator(BaseEvaluator):
 
                 if decided_correct:  # The species and species prediction match
                     species_scores[genome_id].append(1)
+                    if not is_same:
+                        # Added these so they reflect the total number of bits/totals that are correct.
+                        bit_scores[genome_id].append(1)
+                        total_scores[genome_id].append(1)
                 else:
                     species_scores[genome_id].append(0)
+                    # Added these so they reflect the total number of bits/totals that are correct.
+                    bit_scores[genome_id].append(0)
+                    total_scores[genome_id].append(0)
 
                 if is_same:  # This is the same species
                     if decided_same:
@@ -165,6 +172,10 @@ class DecoderEvaluator(BaseEvaluator):
 
                 # Register the score for the genome
                 genome.fitness += fitness
+
+                assert len(species_scores[genome_id]) == len(bit_scores[genome_id]) == len(total_scores[genome_id]), 'Species ({}), bit({}), and total ({}) scores are not the same size in genome {}.'.format(
+                    len(species_scores[genome_id]), len(bit_scores[genome_id]), len(total_scores[genome_id]), genome_id
+                )
 
             message = self.messages.get()
 
