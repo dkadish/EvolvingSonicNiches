@@ -205,6 +205,18 @@ def plot_scores(species_avg, species_std, bits_avg, bits_std, total_avg, total_s
 def draw_net(config, genome, view=False, filename=None, node_names=None, show_disabled=True, prune_unused=False,
              prune_disconnected=False, node_colors=None, fmt='svg'):
     """ Receives a genome and draws a neural network with arbitrary topology. """
+    hidden_colours = {
+        'sigmoid': 'lightblue',
+        'relu': 'lightcoral',
+        'softplus': 'khaki'
+    }
+
+    out_colours = {
+        'sigmoid': 'lightskyblue',
+        'relu': 'lightsalmon',
+        'softplus': 'palegoldenrod'
+    }
+
     # Attributes for network nodes.
     if graphviz is None:
         warnings.warn("This display is not available due to a missing optional dependency (graphviz)")
@@ -228,6 +240,7 @@ def draw_net(config, genome, view=False, filename=None, node_names=None, show_di
 
     dot = graphviz.Digraph(format=fmt, node_attr=node_attrs)
 
+    ######### INPUTS #########
     inputs = set()
     last = None
 
@@ -246,6 +259,7 @@ def draw_net(config, genome, view=False, filename=None, node_names=None, show_di
 
             last = name
 
+    ######### OUTPUTS #########
     outputs = set()
     last = None
 
@@ -255,7 +269,8 @@ def draw_net(config, genome, view=False, filename=None, node_names=None, show_di
         for k in config.genome_config.output_keys:
             name = node_names.get(k, str(k))
             outputs.add(name)
-            node_attrs['fillcolor'] = node_colors.get(k, 'lightblue')
+            # node_attrs['fillcolor'] = node_colors.get(k, 'lightblue')
+            node_attrs['fillcolor'] = out_colours.get(genome.nodes[k].activation, 'whitesmoke')
 
             out_graph.node(name, _attributes=node_attrs)
 
@@ -283,13 +298,15 @@ def draw_net(config, genome, view=False, filename=None, node_names=None, show_di
     else:
         used_nodes = set(genome.nodes.keys())
 
+    ######### HIDDEN #########
     for n in used_nodes:
         if n in inputs or n in outputs:
             continue
 
+        fillcolor = hidden_colours.get(genome.nodes[n].activation, 'white')
         attrs = {'style': 'filled',
-                 'fillcolor': node_colors.get(n, 'white')}
-        dot.node(str(n), _attributes=attrs)
+                 'fillcolor': fillcolor}
+        dot.node(str(n), label='{}\n{}'.format(n,genome.nodes[n].activation[:4]), _attributes=attrs)
 
     for cg in genome.connections.values():
         if cg.enabled or show_disabled:
