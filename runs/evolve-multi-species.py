@@ -58,7 +58,7 @@ def run(config_encoders, config_decoders):
     loudness_thread.start()
 
     # Run for up to 300 generations.
-    n = 100
+    n = 300
     k = 0
     while n is None or k < n:
 
@@ -111,17 +111,17 @@ def run(config_encoders, config_decoders):
         node_names_enc = dict(zip(chain(range(-1,-4,-1),range(0,9)),chain(range(0,3),range(0,9))))
         node_names_dec = dict(zip(chain(range(-1,-10,-1),range(0,4)),chain(range(0,9),range(0,3),['S'])))
 
-        for n in node_names_dec: node_names_dec[n] = str(node_names_dec[n])
-        for n in node_names_enc: node_names_enc[n] = str(node_names_enc[n])
+        for n in node_names_dec: node_names_dec[n] = 'E{}'.format(node_names_dec[n]) if n < 0 else str(node_names_dec[n])
+        for n in node_names_enc: node_names_enc[n] = str(node_names_enc[n]) if n < 0 else 'E{}'.format(node_names_enc[n])
 
         d = datetime.now()
         try:
             visualize.draw_net(config_dec, s.decoder.population.best_genome, view=False, prune_unused=True,
                                show_disabled=False, filename='%s-%i-digraph_dec_pruned.gv' % (
-                    d.strftime('%y-%m-%d_%H-%M-%S'), i))#, node_names=node_names_dec)
+                    d.strftime('%y-%m-%d_%H-%M-%S'), i), node_names=node_names_dec)
             visualize.draw_net(config_enc, s.encoder.population.best_genome, view=False, prune_unused=True,
                                show_disabled=False, filename='%s-%i-digraph_enc_pruned.gv' % (
-                    d.strftime('%y-%m-%d_%H-%M-%S'), i))#, node_names=node_names_enc)
+                    d.strftime('%y-%m-%d_%H-%M-%S'), i), node_names=node_names_enc)
         except CalledProcessError as e:
             print(e)
 

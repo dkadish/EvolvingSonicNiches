@@ -116,7 +116,14 @@ class Cohesion(EncodedStatsBase):
         self.avg = {}
         self.std = {}
         
-    def handle_message(self, message):
+    def handle_message(self, message: Message):
+        '''Handles individual messages for the Cohesion Statistics module.
+
+        Messages
+
+        :param messaging.Message message: The message to process.
+        :return:
+        '''
         super(Cohesion, self).handle_message(message)
 
         species = message.species_id

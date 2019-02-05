@@ -237,14 +237,14 @@ def draw_net(config, genome, view=False, filename=None, node_names=None, show_di
         in_graph.attr(rank='source')
         for k in config.genome_config.input_keys:
             name = node_names.get(k, str(k))
-            inputs.add(k)
+            inputs.add(name)
             attrs = {'fillcolor': node_colors.get(k, 'lightgray')}
             in_graph.node(name, _attributes=attrs)
 
             if last is not None:
-                in_graph.edge(str(last), str(k), _attributes={'style': 'invis'})
+                in_graph.edge(str(last), str(name), _attributes={'style': 'invis'})
 
-            last = k
+            last = name
 
     outputs = set()
     last = None
@@ -253,22 +253,22 @@ def draw_net(config, genome, view=False, filename=None, node_names=None, show_di
     with dot.subgraph(name='outputs', node_attr=out_attrs) as out_graph:
         out_graph.attr(rank='sink')
         for k in config.genome_config.output_keys:
-            outputs.add(k)
             name = node_names.get(k, str(k))
+            outputs.add(name)
             node_attrs['fillcolor'] = node_colors.get(k, 'lightblue')
 
             out_graph.node(name, _attributes=node_attrs)
 
             if last is not None:
-                out_graph.edge(str(last), str(k), _attributes={'style': 'invis'})
+                out_graph.edge(str(last), str(name), _attributes={'style': 'invis'})
 
-            last = k
+            last = name
 
     if prune_unused:
         connections = set()
         for cg in genome.connections.values():
             if cg.enabled or show_disabled:
-                input, output = cg.key
+                input, output = [node_names[k] if k in node_names else k for k in cg.key]
                 connections.add((input, output))
 
         used_nodes = copy.copy(outputs)
@@ -295,7 +295,7 @@ def draw_net(config, genome, view=False, filename=None, node_names=None, show_di
         if cg.enabled or show_disabled:
             #if cg.input not in used_nodes or cg.output not in used_nodes:
             #    continue
-            input, output = cg.key
+            input, output = [node_names[k] if k in node_names else k for k in cg.key]
             a = node_names.get(input, str(input))
             b = node_names.get(output, str(output))
             style = 'solid' if cg.enabled else 'dotted'
