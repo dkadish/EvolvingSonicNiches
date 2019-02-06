@@ -1,0 +1,56 @@
+digraph {
+	node [fontsize=9 height=0.2 shape=circle width=0.2]
+	subgraph inputs {
+		node [shape=box style=filled]
+		rank=source
+		0 [fillcolor=lightgray]
+		1 [fillcolor=lightgray]
+		0 -> 1 [style=invis]
+		2 [fillcolor=lightgray]
+		1 -> 2 [style=invis]
+	}
+	subgraph outputs {
+		node [style=filled]
+		rank=sink
+		E0 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E1 [fillcolor=lightsalmon fontsize=9 height=0.2 shape=circle width=0.2]
+		E0 -> E1 [style=invis]
+		E2 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E1 -> E2 [style=invis]
+		E3 [fillcolor=lightsalmon fontsize=9 height=0.2 shape=circle width=0.2]
+		E2 -> E3 [style=invis]
+		E4 [fillcolor=palegoldenrod fontsize=9 height=0.2 shape=circle width=0.2]
+		E3 -> E4 [style=invis]
+		E5 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E4 -> E5 [style=invis]
+		E6 [fillcolor=lightsalmon fontsize=9 height=0.2 shape=circle width=0.2]
+		E5 -> E6 [style=invis]
+		E7 [fillcolor=lightsalmon fontsize=9 height=0.2 shape=circle width=0.2]
+		E6 -> E7 [style=invis]
+		E8 [fillcolor=palegoldenrod fontsize=9 height=0.2 shape=circle width=0.2]
+		E7 -> E8 [style=invis]
+	}
+	4486 [label="4486
+sigm" fillcolor=lightblue style=filled]
+	5674 [label="5674
+sigm" fillcolor=lightblue style=filled]
+	4350 [label="4350
+sigm" fillcolor=lightblue style=filled]
+	5759 [label="5759
+sigm" fillcolor=lightblue style=filled]
+	1 -> E8 [color=green penwidth=1.5765215605613754 style=solid]
+	0 -> E7 [color=green penwidth=2.526592360506615 style=solid]
+	4350 -> E6 [color=red penwidth=0.19549438191655805 style=solid]
+	4486 -> E2 [color=red penwidth=0.15970321258418257 style=solid]
+	0 -> 4486 [color=green penwidth=0.16332778185619878 style=solid]
+	2 -> 4350 [color=green penwidth=0.6265413758643458 style=solid]
+	4486 -> E4 [color=red penwidth=0.5096650777074403 style=solid]
+	4350 -> 5659 [color=magenta penwidth=1 style=dashed]
+	1 -> 5674 [color=red penwidth=0.2433029904321072 style=solid]
+	5674 -> 4350 [color=red penwidth=0.32162201117016254 style=solid]
+	2 -> 5728 [color=magenta penwidth=1 style=dashed]
+	5728 -> 5659 [color=magenta penwidth=1 style=dashed]
+	4486 -> 5759 [color=red penwidth=0.11973776249118469 style=solid]
+	5759 -> E4 [color=red penwidth=0.2546529158109155 style=solid]
+	1 -> E1 [color=red penwidth=0.17102171971159666 style=solid]
+}
