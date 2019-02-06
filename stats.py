@@ -63,6 +63,40 @@ class Spectrum(EncodedStatsBase):
         self.spectra[species].append(np.zeros(self.n_spectra))
 
 
+class MessageSpectrum(EncodedStatsBase):
+
+    def __init__(self, messages: Queue):
+        super(MessageSpectrum, self).__init__(messages)
+
+        self.spectra = {}
+        self.n_spectra = None
+
+    def handle_message(self, message):
+        super(MessageSpectrum, self).handle_message(message)
+
+        species = message.species_id
+        original_message = message.message['original']
+        encoded_message = message.message['encoded']
+
+        if self.n_spectra is None:
+            self.n_spectra = len(encoded_message)
+
+        if species not in self.spectra:
+            self.spectra[species] = {}
+
+        if original_message not in self.spectra[species]:
+            self.spectra[species][original_message] = [np.zeros(self.n_spectra)]
+
+        self.spectra[species][original_message][-1] += np.array(encoded_message)
+
+    def handle_generation(self, message):
+        super(MessageSpectrum, self).handle_generation(message)
+
+        species = message.species_id
+        for m in self.spectra[species]:
+            self.spectra[species][m].append(np.zeros(self.n_spectra))
+
+
 class Loudness(EncodedStatsBase):
 
     def __init__(self, messages: Queue):

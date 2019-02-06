@@ -6,12 +6,13 @@ from __future__ import print_function
 import os
 from datetime import datetime
 from itertools import chain
+from string import ascii_uppercase
 from subprocess import CalledProcessError
 from threading import Thread
 
 import numpy as np
 
-from stats import Spectrum, Cohesion, Loudness
+from stats import Spectrum, Cohesion, Loudness, MessageSpectrum
 
 np.set_printoptions(precision=3)
 
@@ -48,14 +49,21 @@ def run(config_encoders, config_decoders):
 
     # Start statistics modules
     spectrum_stats = Spectrum(messages.add())
+    message_spectrum_stats = MessageSpectrum(messages.add())
     cohesion_stats = Cohesion(messages.add())
     loudness_stats = Loudness(messages.add())
-    spectrum_thread = Thread(target=spectrum_stats.run)
-    cohesion_thread = Thread(target=cohesion_stats.run)
-    loudness_thread = Thread(target=loudness_stats.run)
-    spectrum_thread.start()
-    cohesion_thread.start()
-    loudness_thread.start()
+    stats_mods = [spectrum_stats, message_spectrum_stats, cohesion_stats, loudness_stats]
+
+    threads = [Thread(target=s.run) for s in stats_mods]
+    # spectrum_thread = Thread(target=spectrum_stats.run)
+    # message_spectrum_thread = Thread(target=message_spectrum_stats.run)
+    # cohesion_thread = Thread(target=cohesion_stats.run)
+    # loudness_thread = Thread(target=loudness_stats.run)
+    for s in threads:
+        s.start()
+    # spectrum_thread.start()
+    # cohesion_thread.start()
+    # loudness_thread.start()
 
     # Run for up to 300 generations.
     n = 300
@@ -79,19 +87,25 @@ def run(config_encoders, config_decoders):
     for s in species:
         s.decoding_scores.put(False)
 
-    print('Spectrum Stats...')
-    spectrum_stats.done()
-    spectrum_thread.join()
-    print('Cohesion Stats...')
-    cohesion_stats.done()
-    cohesion_thread.join()
-    print('Loudness Stats...')
-    loudness_stats.done()
-    loudness_thread.join()
+    for s, t in zip(stats_mods, threads):
+        s.done()
+        t.join()
+    # print('Spectrum Stats...')
+    # spectrum_stats.done()
+    # spectrum_thread.join()
+    # print('Cohesion Stats...')
+    # cohesion_stats.done()
+    # cohesion_thread.join()
+    # print('Loudness Stats...')
+    # loudness_stats.done()
+    # loudness_thread.join()
 
     ####################################################################################################################
 
     vmin = 0
+
+    dirname = '{0:%y}{1}{0:%d_%H%M}'.format(datetime.now(), ascii_uppercase[int(datetime.now().month)-1])
+    os.mkdir('data/{}'.format(dirname))
 
     for i, s in enumerate(species):
         print('Stats for Species %i' % (i + 1))
@@ -117,22 +131,22 @@ def run(config_encoders, config_decoders):
         d = datetime.now()
         try:
             visualize.draw_net(config_dec, s.decoder.population.best_genome, view=False, prune_unused=True,
-                               show_disabled=False, filename='%s-%i-digraph_dec_pruned.gv' % (
+                               show_disabled=False, filename='data/%s/%s-%i-digraph_dec_pruned.gv' % (dirname,
                     d.strftime('%y-%m-%d_%H-%M-%S'), i), node_names=node_names_dec)
             visualize.draw_net(config_enc, s.encoder.population.best_genome, view=False, prune_unused=True,
-                               show_disabled=False, filename='%s-%i-digraph_enc_pruned.gv' % (
+                               show_disabled=False, filename='data/%s/%s-%i-digraph_enc_pruned.gv' % (dirname,
                     d.strftime('%y-%m-%d_%H-%M-%S'), i), node_names=node_names_enc)
         except CalledProcessError as e:
             print(e)
 
         visualize.plot_stats(s.encoder.stats, view=True,
-                             filename='%s-%i-avg_fitness_enc.svg' % (d.strftime('%y-%m-%d_%H-%M-%S'), i))
+                             filename='data/%s/%s-%i-avg_fitness_enc.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
         visualize.plot_species(s.encoder.stats, view=True,
-                               filename='%s-%i-speciation_enc.svg' % (d.strftime('%y-%m-%d_%H-%M-%S'), i))
+                               filename='data/%s/%s-%i-speciation_enc.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
         visualize.plot_stats(s.decoder.stats, view=True,
-                             filename='%s-%i-avg_fitness_dec.svg' % (d.strftime('%y-%m-%d_%H-%M-%S'), i))
+                             filename='data/%s/%s-%i-avg_fitness_dec.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
         visualize.plot_species(s.decoder.stats, view=True,
-                               filename='%s-%i-speciation_dec.svg' % (d.strftime('%y-%m-%d_%H-%M-%S'), i))
+                               filename='data/%s/%s-%i-speciation_dec.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
 
         # p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-4')
         # p.run(eval_genomes, 10)
@@ -142,7 +156,14 @@ def run(config_encoders, config_decoders):
         spectra = spectrum_stats.spectra[s.species_id]
 
         visualize.plot_spectrum(spectra, view=True, vmin=vmin, vmax=max_spectrum,
-                                filename='%s-%i-spectrum.svg' % (d.strftime('%y-%m-%d_%H-%M-%S'), i))
+                                filename='data/%s/%s-%i-spectrum.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
+
+
+        message_spectra = message_spectrum_stats.spectra[s.species_id]
+        message_spectra['total'] = np.average([message_spectra[message] for message in message_spectra], axis=0)
+
+        visualize.plot_message_spectrum(message_spectra, view=True,
+                                filename='data/%s/%s-%i-message_spectrum.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
 
         # Visualize the cohesion
         # cohesions = []
@@ -161,7 +182,7 @@ def run(config_encoders, config_decoders):
         loudness = [np.array(loudness_stats.avg[s.species_id]), np.array(loudness_stats.std[s.species_id])]
 
         visualize.plot_cohesion(cohesion[0], cohesion[1], loudness[0], loudness[1], view=True,
-                                filename='%s-%i-message_cohesion.svg' % (d.strftime('%y-%m-%d_%H-%M-%S'), i))
+                                filename='data/%s/%s-%i-message_cohesion.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
 
         # Visualize the scores
         decoding_scores = s.decoding_scores.get()
@@ -198,7 +219,7 @@ def run(config_encoders, config_decoders):
         visualize.plot_scores(np.array(species_gen_avg), np.array(species_gen_std),
                               np.array(bits_gen_avg), np.array(bits_gen_std),
                               np.array(total_gen_avg), np.array(total_gen_std),
-                              view=True, filename='%s-%i-scores.svg' % (d.strftime('%y-%m-%d_%H-%M-%S'), i))
+                              view=True, filename='data/%s/%s-%i-scores.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
 
 
 if __name__ == '__main__':

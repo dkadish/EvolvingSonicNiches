@@ -1,3 +1,4 @@
+from datetime import datetime
 from multiprocessing import Queue
 from threading import Thread
 
@@ -20,7 +21,7 @@ class CommunicatorSet:
         # Set up reporters
         self.population.add_reporter(neat.StdOutReporter(True))
         self.population.add_reporter(self.stats)
-        self.population.add_reporter(neat.Checkpointer(5))
+        # self.population.add_reporter(neat.Checkpointer(5))
 
         self.evaluator = None
 
@@ -33,12 +34,15 @@ class CommunicatorSet:
                                           messages, scores, self.genomes,
                                           decoding_scores, species_id)
 
+        self.population.add_reporter(neat.Checkpointer(5, filename_prefix='{:%y-%m-%d-%H-%M-%S}_neat-dec-checkpoint-'.format(datetime.now())))
+
     def createEncoderEvaluator(self, #encoded,
                                messages, scores,
                                decoding_scores, species_id):
         self.evaluator = EncoderEvaluator(#encoded,
                                           messages, scores, self.genomes,
                                           decoding_scores, species_id)
+        self.population.add_reporter(neat.Checkpointer(5, filename_prefix='{:%y-%m-%d-%H-%M-%S}_neat-enc-checkpoint-'.format(datetime.now())))
 
     def createPairwireDecoderEvaluator(self, #encoded,
                                        messages, scores,

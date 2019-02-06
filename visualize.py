@@ -120,7 +120,7 @@ def plot_spectrum(spectra, view=False, vmin=None, vmax=None, filename='spectrum.
 
     spectra = np.array(spectra).T
     fig, ax = plt.subplots()
-    p = ax.pcolormesh(spectra, cmap='rainbow', vmin=vmin, vmax=vmax)
+    p = ax.pcolormesh(spectra[:,:-1], cmap='rainbow', vmin=vmin, vmax=vmax)
     fig.colorbar(p,ax=ax)
 
     plt.title("Use of the communication spectrum by generation")
@@ -128,6 +128,43 @@ def plot_spectrum(spectra, view=False, vmin=None, vmax=None, filename='spectrum.
     plt.ylabel("Spectrum")
     plt.grid()
     # plt.legend(loc="best")
+
+    plt.savefig(filename)
+    if view:
+        plt.show()
+
+    plt.close()
+
+def plot_message_spectrum(spectra, view=False, vmin=None, vmax=None, filename='spectrum.svg'):
+    """ Plots the population's average and best fitness. """
+    if plt is None:
+        warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    if vmin is None:
+        vmin = 0
+
+    if vmax is None:
+        vmax = max([np.max(spectra[m]) for m in spectra])
+
+    fig, axarr = plt.subplots(3, 3)
+
+    for i, (ax, message) in enumerate(zip(axarr.flat, spectra)):
+        spectrum = np.array(spectra[message]).T
+        p = ax.pcolormesh(spectrum[:,:-1], cmap='rainbow', vmin=vmin, vmax=vmax)
+        ax.set_title(message, fontsize='x-small')
+
+        ax.tick_params(labelsize='xx-small')
+        ax.label_outer()
+
+    axarr[2,1].set_xlabel('Generation', fontsize='small')
+    axarr[1,0].set_ylabel('Spectrum', fontsize='small')
+
+    fig.subplots_adjust(hspace=0.3)
+    cb = fig.colorbar(p, ax=axarr.flat)
+    cb.ax.tick_params(labelsize='xx-small')
+
+    fig.suptitle("Use of the communication spectrum by generation and message")
 
     plt.savefig(filename)
     if view:
@@ -310,15 +347,14 @@ def draw_net(config, genome, view=False, filename=None, node_names=None, show_di
 
     for cg in genome.connections.values():
         if cg.enabled or show_disabled:
-            #if cg.input not in used_nodes or cg.output not in used_nodes:
-            #    continue
             input, output = [node_names[k] if k in node_names else k for k in cg.key]
-            a = node_names.get(input, str(input))
-            b = node_names.get(output, str(output))
+            if input not in used_nodes or output not in used_nodes:
+                dot.edge(str(input), str(output), _attributes={'style': 'dashed', 'color': 'magenta', 'penwidth': '1'})
+                continue
             style = 'solid' if cg.enabled else 'dotted'
             color = 'green' if cg.weight > 0 else 'red'
             width = str(0.1 + abs(cg.weight / 5.0))
-            dot.edge(a, b, _attributes={'style': style, 'color': color, 'penwidth': width})
+            dot.edge(str(input), str(output), _attributes={'style': style, 'color': color, 'penwidth': width})
 
     dot.render(filename, view=view)
 
