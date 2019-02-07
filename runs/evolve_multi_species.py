@@ -55,15 +55,8 @@ def run(config_encoders, config_decoders):
     stats_mods = [spectrum_stats, message_spectrum_stats, cohesion_stats, loudness_stats]
 
     threads = [Thread(target=s.run) for s in stats_mods]
-    # spectrum_thread = Thread(target=spectrum_stats.run)
-    # message_spectrum_thread = Thread(target=message_spectrum_stats.run)
-    # cohesion_thread = Thread(target=cohesion_stats.run)
-    # loudness_thread = Thread(target=loudness_stats.run)
     for s in threads:
         s.start()
-    # spectrum_thread.start()
-    # cohesion_thread.start()
-    # loudness_thread.start()
 
     # Run for up to 300 generations.
     n = 300
@@ -90,15 +83,6 @@ def run(config_encoders, config_decoders):
     for s, t in zip(stats_mods, threads):
         s.done()
         t.join()
-    # print('Spectrum Stats...')
-    # spectrum_stats.done()
-    # spectrum_thread.join()
-    # print('Cohesion Stats...')
-    # cohesion_stats.done()
-    # cohesion_thread.join()
-    # print('Loudness Stats...')
-    # loudness_stats.done()
-    # loudness_thread.join()
 
     ####################################################################################################################
 
@@ -148,9 +132,6 @@ def run(config_encoders, config_decoders):
         visualize.plot_species(s.decoder.stats, view=True,
                                filename='data/%s/%s-%i-speciation_dec.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
 
-        # p = neat.Checkpointer.restore_checkpoint('neat-checkpoint-4')
-        # p.run(eval_genomes, 10)
-
         # Visualize the spectra
         max_spectrum = max([np.max(np.array(spectrum_stats.spectra[s])) for s in spectrum_stats.spectra])
         spectra = spectrum_stats.spectra[s.species_id]
@@ -166,18 +147,6 @@ def run(config_encoders, config_decoders):
                                 filename='data/%s/%s-%i-message_spectrum.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
 
         # Visualize the cohesion
-        # cohesions = []
-        # loudness_avg = []
-        # loudness_std = []
-        # cohesion_array = s.cohesion.get()
-        # while cohesion_array is not False:
-        #     cohesion, loudness = cohesion_array
-        #     cohesions.append(np.average(list(cohesion.values())))
-        #     loudness_avg.append(loudness['avg'])
-        #     loudness_std.append(loudness['std'])
-        #
-        #     cohesion_array = s.cohesion.get()
-
         cohesion = [np.array(cohesion_stats.avg[s.species_id]), np.array(cohesion_stats.std[s.species_id])]
         loudness = [np.array(loudness_stats.avg[s.species_id]), np.array(loudness_stats.std[s.species_id])]
 

@@ -120,62 +120,24 @@ class DecoderEvaluator(BaseEvaluator):
                 net = neat.nn.FeedForwardNetwork.create(genome, config)
                 decoded_message = net.activate(encoded_message)
 
-                ''' Score the decoding.
-                First, check to see whether it got the species identification (last bit) correct. This should be 1
-                if it is the same species, 0 otherwise. The penalty for incorrect identification is -4.
-                
-                If species ID is correct AND this is from one's own species:
-                The score is the absolute difference between the floating point (0..1) output of the 
-                decoder and the boolean (0/1) input of the original message.
-                
-                If this is a multispecies optimization, an additional condition is occurs. The messages should be
-                treated as neutral or unimportant and any message from another species is scored as the absolute
-                difference from an array of 0.5. Scores are only recorded for the encoders of the same species.
-                OLD!
-                
-                There are also three additional decoder scores. Species score, bit score, and total score. Species score
-                is 1/-1 whether it correctly identified its own/other species. Bit score is how many of 3 bits were
-                correct (if species was a match and identified correctly). Total score is 1 point if species was
-                correctly identified as a match and all three bits were correct.
-                '''
-
                 # Ensure decoded_message is between 0 and 1
                 decoded_message = np.clip(decoded_message, 0, 1)
 
-                decided_same = decoded_message[-1] >= 0.5  # NN thinks its from the same species
-                is_same = enc_species_id == self.species_id  # It is from the same species
-                decided_correct = decided_same == is_same  # The decision was correct
-                fitness = 1 - abs(int(is_same) - decoded_message[-1])
+                e_fitness = DecoderEvaluator.sender_fitness(original_message, decoded_message, enc_species_id, self.species_id)
+                d_fitness = DecoderEvaluator.receiver_fitness(original_message, decoded_message, enc_species_id, self.species_id)
+                species_score, bit_score, total_score = DecoderEvaluator.score(original_message, decoded_message, enc_species_id, self.species_id)
 
-                if decided_correct:  # The species and species prediction match
-                    species_scores[genome_id].append(1)
-                    if not is_same:
-                        # Added these so they reflect the total number of bits/totals that are correct.
-                        bit_scores[genome_id].append(1)
-                        total_scores[genome_id].append(1)
-                else:
-                    species_scores[genome_id].append(0)
-                    # Added these so they reflect the total number of bits/totals that are correct.
-                    bit_scores[genome_id].append(0)
-                    total_scores[genome_id].append(0)
+                if e_fitness is not None:
+                    encoder_fitness[enc_genome_id] += e_fitness
 
-                if is_same:  # This is the same species
-                    if decided_same:
-                        bit_score = 3 - sum([abs(o - round(d)) for o, d in zip(original_message, decoded_message)])
-                        bit_scores[genome_id].append(bit_score / 3)
-                        total_scores[genome_id].append(bit_score == 3 and 1 or 0)
+                genome.fitness += d_fitness
 
-                        fitness += (3 - sum([abs(o - d) for o, d in zip(original_message, decoded_message)]))
+                species_scores[genome_id].append(species_score)
+                if bit_score is not None or total_score is not None:
+                    assert bit_score is not None and total_score is not None
 
-                    # Pass the score back for the encoder
-                    encoder_fitness[enc_genome_id] += fitness
-
-                # Register the score for the genome
-                genome.fitness += fitness
-
-                assert len(species_scores[genome_id]) == len(bit_scores[genome_id]) == len(total_scores[genome_id]), 'Species ({}), bit({}), and total ({}) scores are not the same size in genome {}.'.format(
-                    len(species_scores[genome_id]), len(bit_scores[genome_id]), len(total_scores[genome_id]), genome_id
-                )
+                    bit_scores[genome_id].append(bit_score)
+                    total_scores[genome_id].append(total_score)
 
             message = self.messages.get()
 
@@ -196,6 +158,102 @@ class DecoderEvaluator(BaseEvaluator):
         self.genomes.put(dict(genomes))
 
         self.decoding_scores.put({'species': species_scores, 'bit': bit_scores, 'total': total_scores})
+
+    @staticmethod
+    def sender_fitness(original, decode, sender_species, receiver_species):
+        '''Score the sender.
+
+        The sender only gets points for receivers within the species. Other receivers are ignored.
+
+        :param original:
+        :param decode:
+        :param sender_species:
+        :param receiver_species:
+        :return:
+        '''
+        decided_same = decode[-1] >= 0.5  # NN thinks its from the same species
+        is_same = sender_species == receiver_species  # It is from the same species
+        decided_correct = decided_same == is_same  # The decision was correct
+
+        if not is_same:
+            return None
+
+        # How close did the decoder come to determining the correct species
+        fitness = 1 - abs(int(is_same) - decode[-1])
+
+        if decided_correct:
+            fitness += (3 - sum([abs(o - d) for o, d in zip(original, decode)]))
+
+        return fitness
+
+    @staticmethod
+    def receiver_fitness(original, decode, sender_species, receiver_species):
+        '''Score the receiver.
+
+        The receiver is scored similarly to the sender, but it also gets points for correctly identified non-member
+        calls.
+
+        :todo Do I need to bump the scores (add 1.5, for example) for correctly identified non-members?
+
+        :param original:
+        :param decode:
+        :param sender_species:
+        :param receiver_species:
+        :return:
+        '''
+        decided_same = decode[-1] >= 0.5  # NN thinks its from the same species
+        is_same = sender_species == receiver_species  # It is from the same species
+        decided_correct = decided_same == is_same  # The decision was correct
+
+        fitness = 1 - abs(int(is_same) - decode[-1])
+
+        if decided_correct and is_same:
+            fitness += (3 - sum([abs(o - d) for o, d in zip(original, decode)]))
+
+        return fitness
+
+
+    @staticmethod
+    def score(original, decode, sender_species, receiver_species):
+        '''Finds the score for a decoded message.
+
+        This score is not the fitness. It is an external measure of the performance of the decoder in terms of the
+        percentage of messages that it decodes correctly. The score is returned as a tuple/list in the form of
+        ``[ species, bits, total ]``.
+
+        ``species`` is a simple binary measuring whether the decoder correctly identified the sample as coming from
+        within the group of outside of it.
+        ``bit`` measures the proportion of bits that are correctly categorized. This looks only at messages from within
+        the species and assigns an automatic 0 id the species is incorrectly identified.
+        ``total`` measures the proportion of messages where the entire message is correctly decoded. It looks only at
+        messages from within the species and assigns an automatic 0 id the species is incorrectly identified.
+
+        :param original: Original message, 3 bit array, assumed to be on [0..1]
+        :param decode: Decoded message, 4 bit array
+        :param sender_species: ID of the sender species
+        :param receiver_species: ID of the receiver species
+        :return:
+        '''
+
+        decided_same = decode[-1] >= 0.5  # NN thinks its from the same species
+        is_same = sender_species == receiver_species # It is from the same species
+        decided_correct = decided_same == is_same  # The decision was correct
+
+        # Score the species selection
+        species = int(decided_correct)
+
+        if is_same and not decided_correct:
+            bits = 0
+            total = 0
+        elif is_same:
+            bits = 3 - sum([abs(o-round(d)) for o,d in zip(original, decode)])
+            total = 1.0 if bits == 3 else 0.0
+            bits /= 3.0
+        else:
+            bits = None
+            total = None
+
+        return [species, bits, total]
 
 
 class PairwiseDecoderEvaluator(BaseEvaluator):
@@ -327,3 +385,7 @@ class PairwiseDecoderEvaluator(BaseEvaluator):
         self.genomes.put(genomes)
 
         self.decoding_scores.put({'species': species_scores, 'bit': bit_scores, 'total': total_scores})
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()

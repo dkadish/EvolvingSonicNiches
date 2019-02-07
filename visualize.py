@@ -349,7 +349,6 @@ def draw_net(config, genome, view=False, filename=None, node_names=None, show_di
         if cg.enabled or show_disabled:
             input, output = [node_names[k] if k in node_names else k for k in cg.key]
             if input not in used_nodes or output not in used_nodes:
-                dot.edge(str(input), str(output), _attributes={'style': 'dashed', 'color': 'magenta', 'penwidth': '1'})
                 continue
             style = 'solid' if cg.enabled else 'dotted'
             color = 'green' if cg.weight > 0 else 'red'
