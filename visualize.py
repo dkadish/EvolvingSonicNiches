@@ -2,11 +2,19 @@ from __future__ import print_function
 
 import copy
 import warnings
+from functools import reduce
+from math import inf
 
 import graphviz
 import matplotlib.pyplot as plt
 import numpy as np
 
+def message_sort_key(message):
+    if type(message) == str:
+        return inf
+
+    number = reduce(lambda a, b: (a << 1) + int(b), message)
+    return number
 
 def plot_stats(statistics, ylog=False, view=False, filename='avg_fitness.svg'):
     """ Plots the population's average and best fitness. """
@@ -149,7 +157,9 @@ def plot_message_spectrum(spectra, view=False, vmin=None, vmax=None, filename='s
 
     fig, axarr = plt.subplots(3, 3)
 
-    for i, (ax, message) in enumerate(zip(axarr.flat, spectra)):
+    messages = sorted(spectra.keys(), key=message_sort_key)
+
+    for i, (ax, message) in enumerate(zip(axarr.flat, messages)):
         spectrum = np.array(spectra[message]).T
         p = ax.pcolormesh(spectrum[:,:-1], cmap='rainbow', vmin=vmin, vmax=vmax)
         ax.set_title(message, fontsize='x-small')
