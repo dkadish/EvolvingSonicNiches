@@ -9,12 +9,14 @@ import graphviz
 import matplotlib.pyplot as plt
 import numpy as np
 
+
 def message_sort_key(message):
     if type(message) == str:
         return inf
 
     number = reduce(lambda a, b: (a << 1) + int(b), message)
     return number
+
 
 def plot_stats(statistics, ylog=False, view=False, filename='avg_fitness.svg'):
     """ Plots the population's average and best fitness. """
@@ -120,6 +122,7 @@ def plot_species(statistics, view=False, filename='speciation.svg'):
 
     plt.close()
 
+
 def plot_spectrum(spectra, view=False, vmin=None, vmax=None, filename='spectrum.svg'):
     """ Plots the population's average and best fitness. """
     if plt is None:
@@ -128,8 +131,8 @@ def plot_spectrum(spectra, view=False, vmin=None, vmax=None, filename='spectrum.
 
     spectra = np.array(spectra).T
     fig, ax = plt.subplots()
-    p = ax.pcolormesh(spectra[:,:-1], cmap='rainbow', vmin=vmin, vmax=vmax)
-    fig.colorbar(p,ax=ax)
+    p = ax.pcolormesh(spectra[:, :-1], cmap='rainbow', vmin=vmin, vmax=vmax)
+    fig.colorbar(p, ax=ax)
 
     plt.title("Use of the communication spectrum by generation")
     plt.xlabel("Generations")
@@ -142,6 +145,7 @@ def plot_spectrum(spectra, view=False, vmin=None, vmax=None, filename='spectrum.
         plt.show()
 
     plt.close()
+
 
 def plot_message_spectrum(spectra, view=False, vmin=None, vmax=None, filename='spectrum.svg'):
     """ Plots the population's average and best fitness. """
@@ -161,14 +165,14 @@ def plot_message_spectrum(spectra, view=False, vmin=None, vmax=None, filename='s
 
     for i, (ax, message) in enumerate(zip(axarr.flat, messages)):
         spectrum = np.array(spectra[message]).T
-        p = ax.pcolormesh(spectrum[:,:-1], cmap='rainbow', vmin=vmin, vmax=vmax)
+        p = ax.pcolormesh(spectrum[:, :-1], cmap='rainbow', vmin=vmin, vmax=vmax)
         ax.set_title(message, fontsize='x-small')
 
         ax.tick_params(labelsize='xx-small')
         ax.label_outer()
 
-    axarr[2,1].set_xlabel('Generation', fontsize='small')
-    axarr[1,0].set_ylabel('Spectrum', fontsize='small')
+    axarr[2, 1].set_xlabel('Generation', fontsize='small')
+    axarr[1, 0].set_ylabel('Spectrum', fontsize='small')
 
     fig.subplots_adjust(hspace=0.3)
     cb = fig.colorbar(p, ax=axarr.flat)
@@ -181,6 +185,7 @@ def plot_message_spectrum(spectra, view=False, vmin=None, vmax=None, filename='s
         plt.show()
 
     plt.close()
+
 
 def plot_cohesion(cohesion_avg, cohesion_std, loudness_avg, loudness_std, view=False, filename='message_cohesion.svg'):
     """ Plots the average distance between the same message for each generation. """
@@ -197,13 +202,44 @@ def plot_cohesion(cohesion_avg, cohesion_std, loudness_avg, loudness_std, view=F
     ax1.plot(generation, cohesion_array, 'b-', label="overall")
     ax1.fill_between(generation, cohesion_avg - cohesion_std, cohesion_avg + cohesion_std, facecolor='blue', alpha=0.25)
     ax2.plot(generation, loudness_avg, 'g-', label="loudness")
-    ax2.fill_between(generation, loudness_avg - loudness_std, loudness_avg + loudness_std, facecolor='green', alpha=0.25)
+    ax2.fill_between(generation, loudness_avg - loudness_std, loudness_avg + loudness_std, facecolor='green',
+                     alpha=0.25)
 
     plt.title("Message Difference and Loudness")
     plt.xlabel("Generations")
     ax1.set_ylabel("Distance")
     ax2.set_ylabel("Loudness")
     plt.grid()
+    plt.legend(loc="best")
+
+    plt.savefig(filename)
+    if view:
+        plt.show()
+
+    plt.close()
+
+
+def plot_clustering(ch, silhouette, view=False, filename='clustering_stats.svg'):
+    """ Plots the silhouette and calinski-harabaz scores for the messages within and between each species. """
+    if plt is None:
+        warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    fig, (ax1, ax2) = plt.subplots(2, sharex=True)
+    cycler = plt.cycler(c=['b','g','r'])
+
+    for species, kwargs in zip(ch,cycler):
+        generation = range(len(ch[species]))
+        ax1.plot(generation, ch[species], label=species, **kwargs)
+        ax2.plot(generation, silhouette[species], label=species, **kwargs)
+
+    fig.subplots_adjust(hspace=0.3)
+    fig.suptitle("Clustering of Messages")
+    plt.xlabel("Generations")
+    ax1.set_ylabel("CH Score")
+    ax2.set_ylabel("Silhouette Score")
+    ax1.grid()
+    ax2.grid()
     plt.legend(loc="best")
 
     plt.savefig(filename)
@@ -220,7 +256,6 @@ def plot_scores(species_avg, species_std, bits_avg, bits_std, total_avg, total_s
         return
 
     generation = range(len(species_avg))
-
 
     plt.plot(generation, species_avg, 'b-', label="species")
     # plt.plot(generation, species_avg - species_std, 'g-.', label="-1 sd")
@@ -248,6 +283,7 @@ def plot_scores(species_avg, species_std, bits_avg, bits_std, total_avg, total_s
         plt.show()
 
     plt.close()
+
 
 def draw_net(config, genome, view=False, filename=None, node_names=None, show_disabled=True, prune_unused=False,
              prune_disconnected=False, node_colors=None, fmt='svg'):
@@ -353,7 +389,7 @@ def draw_net(config, genome, view=False, filename=None, node_names=None, show_di
         fillcolor = hidden_colours.get(genome.nodes[n].activation, 'white')
         attrs = {'style': 'filled',
                  'fillcolor': fillcolor}
-        dot.node(str(n), label='{}\n{}'.format(n,genome.nodes[n].activation[:4]), _attributes=attrs)
+        dot.node(str(n), label='{}\n{}'.format(n, genome.nodes[n].activation[:4]), _attributes=attrs)
 
     for cg in genome.connections.values():
         if cg.enabled or show_disabled:

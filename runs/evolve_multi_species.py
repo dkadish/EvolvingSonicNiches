@@ -12,7 +12,7 @@ from threading import Thread
 
 import numpy as np
 
-from stats import Spectrum, Cohesion, Loudness, MessageSpectrum
+from stats import Spectrum, Cohesion, Loudness, MessageSpectrum, Cluster
 
 np.set_printoptions(precision=3)
 
@@ -52,7 +52,8 @@ def run(config_encoders, config_decoders):
     message_spectrum_stats = MessageSpectrum(messages.add())
     cohesion_stats = Cohesion(messages.add())
     loudness_stats = Loudness(messages.add())
-    stats_mods = [spectrum_stats, message_spectrum_stats, cohesion_stats, loudness_stats]
+    cluster_stats = Cluster(messages.add())
+    stats_mods = [spectrum_stats, message_spectrum_stats, cohesion_stats, loudness_stats, cluster_stats]
 
     threads = [Thread(target=s.run) for s in stats_mods]
     for s in threads:
@@ -190,6 +191,16 @@ def run(config_encoders, config_decoders):
                               np.array(total_gen_avg), np.array(total_gen_std),
                               view=True, filename='data/%s/%s-%i-scores.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
 
+    # Visualize the cluster stats
+    # cohesion = [np.array(cohesion_stats.avg[s.species_id]), np.array(cohesion_stats.std[s.species_id])]
+    # loudness = [np.array(loudness_stats.avg[s.species_id]), np.array(loudness_stats.std[s.species_id])]
+    #
+    # visualize.plot_cohesion(cohesion[0], cohesion[1], loudness[0], loudness[1], view=True,
+    #                         filename='data/%s/%s-%i-message_cohesion.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
+    ch = cluster_stats.ch
+    silhouette = cluster_stats.silhouette
+    visualize.plot_clustering(ch, silhouette, view=True,
+                            filename='data/%s/%s-clustering_stats.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S')))
 
 if __name__ == '__main__':
     # Determine path to configuration file. This path manipulation is

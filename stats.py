@@ -2,6 +2,7 @@ from multiprocessing import Queue
 
 import numpy as np
 from scipy.spatial.distance import cdist
+from sklearn import metrics
 
 from messaging import MessageType, Message
 
@@ -9,15 +10,27 @@ from messaging import MessageType, Message
 class EncodedStatsBase:
     def __init__(self, messages: Queue):
         self.messages = messages
+        self.species = set()
+
+        self._species_generation_complete = set()
 
     def run(self):
         message = self.messages.get()
         while message.type != MessageType.FINISHED:
+            self.species.add(message.species_id)
             self.handle_message(message)
 
             message = self.messages.get()
             while message.type == MessageType.GENERATION:
                 self.handle_generation(message)
+                self._species_generation_complete.add(message.species_id)
+
+                # All species have completed a generation
+                if self._species_generation_complete == self.species:
+                    self.handle_full_generation(message)
+
+                    self._species_generation_complete = set()
+
                 message = self.messages.get()
 
         self.handle_finish()
@@ -28,11 +41,19 @@ class EncodedStatsBase:
     def handle_generation(self, message):
         pass
 
+    def handle_full_generation(self, message):
+        pass
+
     def handle_finish(self):
         pass
 
     def done(self):
         self.messages.put(Message.Finished())
+
+    @property
+    def n_species(self):
+        return len(self.species)
+
 
 class Spectrum(EncodedStatsBase):
 
@@ -143,13 +164,13 @@ class Loudness(EncodedStatsBase):
 
 class Cohesion(EncodedStatsBase):
 
-    def __init__(self, messages:Queue):
+    def __init__(self, messages: Queue):
         super(Cohesion, self).__init__(messages)
 
         self.cohesion = {}
         self.avg = {}
         self.std = {}
-        
+
     def handle_message(self, message: Message):
         '''Handles individual messages for the Cohesion Statistics module.
 
@@ -193,7 +214,7 @@ class Cohesion(EncodedStatsBase):
             self.std[species] = []
 
         distances = []
-        for m in self.cohesion[species]: # For the same original message
+        for m in self.cohesion[species]:  # For the same original message
             encodings = np.array(self.cohesion[species][m])
             distance_matrix = cdist(encodings, encodings)
             distances.append(np.average(distance_matrix))
@@ -201,3 +222,87 @@ class Cohesion(EncodedStatsBase):
         self.avg[species].append(np.average(distances))
         self.std[species].append(np.std(distances))
         self.cohesion[species] = {}
+
+
+class Cluster(EncodedStatsBase):
+    overall = 'ALL'
+
+    def __init__(self, messages: Queue):
+        super(Cluster, self).__init__(messages)
+
+        self.encoded = {}
+        self.originals = {}
+
+        self.ch = {}
+        self.silhouette = {}
+
+    def handle_message(self, message: Message):
+        '''Handles individual messages for the Cohesion Statistics module.
+
+        Adds the incoming message to a dict consisting of ``{ original message: [encoded message, ] }``.
+        This structure is reset every generation.
+
+        :param messaging.Message message: The message to process.
+        :return: None
+        '''
+        super(Cluster, self).handle_message(message)
+
+        species = message.species_id
+        if species not in self.encoded:
+            self.encoded[species] = []
+        if species not in self.originals:
+            self.originals[species] = []
+
+        original = message.message['original']
+        encoded = message.message['encoded']
+        self.originals[species].append(original)
+        self.encoded[species].append(encoded)
+
+    def handle_generation(self, message):
+        super(Cluster, self).handle_generation(message)
+
+        species = message.species_id
+        messages = np.array(self.encoded[species])
+        originals = np.array(self.originals[species])
+        # Convert to integer
+        originals = np.sum(originals << np.array([2, 1, 0]), axis=1)
+
+        if species not in self.ch:
+            self.ch[species] = []
+        if species not in self.silhouette:
+            self.silhouette[species] = []
+
+        # Calculate within species scores for this generation
+        self.ch[species].append(metrics.calinski_harabaz_score(messages, originals))
+        self.silhouette[species].append(metrics.silhouette_score(messages, originals))
+
+        if self.overall not in self.encoded:
+            self.encoded[self.overall] = []
+        if self.overall not in self.originals:
+            self.originals[self.overall] = []
+
+        # Add to overall lists for between species comparison
+        self.encoded[self.overall].extend(self.encoded[species])
+        self.originals[self.overall].extend([species for o in self.originals[species]])
+
+        # Delete messages from this generation
+        self.encoded[species] = []
+        self.originals[species] = []
+
+    def handle_full_generation(self, message):
+        super(Cluster, self).handle_full_generation(message)
+
+        messages = np.array(self.encoded[self.overall])
+        originals = np.array(self.originals[self.overall])
+
+        if self.overall not in self.ch:
+            self.ch[self.overall] = []
+        if self.overall not in self.silhouette:
+            self.silhouette[self.overall] = []
+
+        self.ch[self.overall].append(metrics.calinski_harabaz_score(messages, originals))
+        self.silhouette[self.overall].append(metrics.silhouette_score(messages, originals))
+
+        # Delete messages from this generation
+        self.encoded[self.overall] = []
+        self.originals[self.overall] = []
