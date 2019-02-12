@@ -10,6 +10,7 @@ from string import ascii_uppercase
 from subprocess import CalledProcessError
 from threading import Thread
 
+import joblib
 import numpy as np
 
 from stats import Spectrum, Cohesion, Loudness, MessageSpectrum, Cluster
@@ -44,7 +45,7 @@ def run(config_encoders, config_decoders):
 
     # encoded = MultiQueue()
     messages = MultiQueue()
-    species = [Species(config_enc, config_dec, #encoded,
+    species = [Species(config_enc, config_dec,  # encoded,
                        messages, pairwise=False) for s in range(2)]
 
     # Start statistics modules
@@ -89,8 +90,11 @@ def run(config_encoders, config_decoders):
 
     vmin = 0
 
-    dirname = '{0:%y}{1}{0:%d_%H%M}'.format(datetime.now(), ascii_uppercase[int(datetime.now().month)-1])
+    dirname = '{0:%y}{1}{0:%d_%H%M}'.format(datetime.now(), ascii_uppercase[int(datetime.now().month) - 1])
     os.mkdir('data/{}'.format(dirname))
+
+    pickle_file = 'data/{}/data.joblib'.format(dirname)
+    pickle_data = {}
 
     for i, s in enumerate(species):
         print('Stats for Species %i' % (i + 1))
@@ -107,31 +111,43 @@ def run(config_encoders, config_decoders):
             output_dec = winner_net_dec.activate(output_enc)
             print("Input {!r} -> {!r} -> {!r} Output".format(input, np.array(output_enc), np.array(output_dec)))
 
-        node_names_enc = dict(zip(chain(range(-1,-4,-1),range(0,9)),chain(range(0,3),range(0,9))))
-        node_names_dec = dict(zip(chain(range(-1,-10,-1),range(0,4)),chain(range(0,9),range(0,3),['S'])))
+        node_names_enc = dict(zip(chain(range(-1, -4, -1), range(0, 9)), chain(range(0, 3), range(0, 9))))
+        node_names_dec = dict(zip(chain(range(-1, -10, -1), range(0, 4)), chain(range(0, 9), range(0, 3), ['S'])))
 
-        for n in node_names_dec: node_names_dec[n] = 'E{}'.format(node_names_dec[n]) if n < 0 else str(node_names_dec[n])
-        for n in node_names_enc: node_names_enc[n] = str(node_names_enc[n]) if n < 0 else 'E{}'.format(node_names_enc[n])
+        for n in node_names_dec: node_names_dec[n] = 'E{}'.format(node_names_dec[n]) if n < 0 else str(
+            node_names_dec[n])
+        for n in node_names_enc: node_names_enc[n] = str(node_names_enc[n]) if n < 0 else 'E{}'.format(
+            node_names_enc[n])
 
         d = datetime.now()
         try:
             visualize.draw_net(config_dec, s.decoder.population.best_genome, view=False, prune_unused=True,
                                show_disabled=False, filename='data/%s/%s-%i-digraph_dec_pruned.gv' % (dirname,
-                    d.strftime('%y-%m-%d_%H-%M-%S'), i), node_names=node_names_dec)
+                                                                                                      d.strftime(
+                                                                                                          '%y-%m-%d_%H-%M-%S'),
+                                                                                                      i),
+                               node_names=node_names_dec)
             visualize.draw_net(config_enc, s.encoder.population.best_genome, view=False, prune_unused=True,
                                show_disabled=False, filename='data/%s/%s-%i-digraph_enc_pruned.gv' % (dirname,
-                    d.strftime('%y-%m-%d_%H-%M-%S'), i), node_names=node_names_enc)
+                                                                                                      d.strftime(
+                                                                                                          '%y-%m-%d_%H-%M-%S'),
+                                                                                                      i),
+                               node_names=node_names_enc)
         except CalledProcessError as e:
             print(e)
 
         visualize.plot_stats(s.encoder.stats, view=True,
-                             filename='data/%s/%s-%i-avg_fitness_enc.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
+                             filename='data/%s/%s-%i-avg_fitness_enc.svg' % (
+                             dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
         visualize.plot_species(s.encoder.stats, view=True,
-                               filename='data/%s/%s-%i-speciation_enc.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
+                               filename='data/%s/%s-%i-speciation_enc.svg' % (
+                               dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
         visualize.plot_stats(s.decoder.stats, view=True,
-                             filename='data/%s/%s-%i-avg_fitness_dec.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
+                             filename='data/%s/%s-%i-avg_fitness_dec.svg' % (
+                             dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
         visualize.plot_species(s.decoder.stats, view=True,
-                               filename='data/%s/%s-%i-speciation_dec.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
+                               filename='data/%s/%s-%i-speciation_dec.svg' % (
+                               dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
 
         # Visualize the spectra
         max_spectrum = max([np.max(np.array(spectrum_stats.spectra[s])) for s in spectrum_stats.spectra])
@@ -140,19 +156,20 @@ def run(config_encoders, config_decoders):
         visualize.plot_spectrum(spectra, view=True, vmin=vmin, vmax=max_spectrum,
                                 filename='data/%s/%s-%i-spectrum.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
 
-
         message_spectra = message_spectrum_stats.spectra[s.species_id]
         message_spectra['total'] = np.average([message_spectra[message] for message in message_spectra], axis=0)
 
         visualize.plot_message_spectrum(message_spectra, view=True,
-                                filename='data/%s/%s-%i-message_spectrum.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
+                                        filename='data/%s/%s-%i-message_spectrum.svg' % (
+                                        dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
 
         # Visualize the cohesion
         cohesion = [np.array(cohesion_stats.avg[s.species_id]), np.array(cohesion_stats.std[s.species_id])]
         loudness = [np.array(loudness_stats.avg[s.species_id]), np.array(loudness_stats.std[s.species_id])]
 
         visualize.plot_cohesion(cohesion[0], cohesion[1], loudness[0], loudness[1], view=True,
-                                filename='data/%s/%s-%i-message_cohesion.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
+                                filename='data/%s/%s-%i-message_cohesion.svg' % (
+                                dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
 
         # Visualize the scores
         decoding_scores = s.decoding_scores.get()
@@ -189,7 +206,8 @@ def run(config_encoders, config_decoders):
         visualize.plot_scores(np.array(species_gen_avg), np.array(species_gen_std),
                               np.array(bits_gen_avg), np.array(bits_gen_std),
                               np.array(total_gen_avg), np.array(total_gen_std),
-                              view=True, filename='data/%s/%s-%i-scores.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
+                              view=True,
+                              filename='data/%s/%s-%i-scores.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
 
     # Visualize the cluster stats
     # cohesion = [np.array(cohesion_stats.avg[s.species_id]), np.array(cohesion_stats.std[s.species_id])]
@@ -199,8 +217,17 @@ def run(config_encoders, config_decoders):
     #                         filename='data/%s/%s-%i-message_cohesion.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
     ch = cluster_stats.ch
     silhouette = cluster_stats.silhouette
-    visualize.plot_clustering(ch, silhouette, view=True,
-                            filename='data/%s/%s-clustering_stats.svg' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S')))
+    archive = cluster_stats.archive
+
+    pickle_data['ch'] = ch
+    pickle_data['silhouette'] = silhouette
+    pickle_data['archive'] = archive
+
+    visualize.plot_clustering(ch, silhouette, archive, view=True,
+                              filename='data/%s/%s-clustering_stats' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S')))
+
+    joblib.dump(pickle_data, pickle_file)
+
 
 if __name__ == '__main__':
     # Determine path to configuration file. This path manipulation is

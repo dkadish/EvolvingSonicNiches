@@ -3,6 +3,7 @@ from multiprocessing import Queue
 import numpy as np
 from scipy.spatial.distance import cdist
 from sklearn import metrics
+from sklearn.manifold import TSNE
 
 from messaging import MessageType, Message
 
@@ -224,8 +225,34 @@ class Cohesion(EncodedStatsBase):
         self.cohesion[species] = {}
 
 
+class MessageArchive:
+    def __init__(self, generation: int, name: str, messages: np.array, labels: np.array):
+        self.generation = generation
+        self.name = name
+        self.messages = messages
+        self.labels = labels
+        self._2d = None
+
+    @property
+    def two_dimensional(self):
+        if self._2d is None:
+            self._2d = TSNE(n_components=2).fit_transform(self.messages)
+
+        return self._2d
+
+    @property
+    def numeric_labels(self):
+        if type(self.name) == int:
+            # These are triplet values
+            return np.sum(np.array(self.labels) << np.arange(2,-1,-1), axis=1)
+
+        else:
+            return [int(l) for l in self.labels]
+
+
 class Cluster(EncodedStatsBase):
     overall = 'ALL'
+    archive_interval = 50 #50
 
     def __init__(self, messages: Queue):
         super(Cluster, self).__init__(messages)
@@ -235,6 +262,14 @@ class Cluster(EncodedStatsBase):
 
         self.ch = {}
         self.silhouette = {}
+
+        self.archive = {}
+
+        self.best = {}
+
+    @property
+    def generation(self):
+        return min([len(v) for v in self.ch.values()])
 
     def handle_message(self, message: Message):
         '''Handles individual messages for the Cohesion Statistics module.
@@ -265,16 +300,35 @@ class Cluster(EncodedStatsBase):
         messages = np.array(self.encoded[species])
         originals = np.array(self.originals[species])
         # Convert to integer
-        originals = np.sum(originals << np.array([2, 1, 0]), axis=1)
+        original_ints = np.sum(originals << np.array([2, 1, 0]), axis=1)
 
         if species not in self.ch:
             self.ch[species] = []
         if species not in self.silhouette:
             self.silhouette[species] = []
+            self.silhouette['{}.{}'.format(species,0)] = []
+            self.silhouette['{}.{}'.format(species,1)] = []
+            self.silhouette['{}.{}'.format(species,2)] = []
+        if species not in self.archive:
+            self.archive[species] = []
+        if species not in self.best:
+            self.best[species] = 0
 
         # Calculate within species scores for this generation
-        self.ch[species].append(metrics.calinski_harabaz_score(messages, originals))
-        self.silhouette[species].append(metrics.silhouette_score(messages, originals))
+        self.ch[species].append(metrics.calinski_harabaz_score(messages, original_ints))
+        self.silhouette[species].append(metrics.silhouette_score(messages, original_ints))
+
+        # Calculate scores for each bit
+        for b in range(3):
+            s = metrics.silhouette_score(messages, originals[:, 2-b])
+            self.silhouette['{}.{}'.format(species,b)].append(s)
+
+        # log best score
+        is_best = False
+        print(species, self.silhouette[species][-1]+1, self.best[species] * 1.2, (self.silhouette[species][-1]+1) > self.best[species] * 1.2)
+        if (self.silhouette[species][-1]+1) > self.best[species] * 1.2: # +1 to raise range to [0,2] from [-1,1]
+            is_best = True
+            self.best[species] = self.silhouette[species][-1]+1
 
         if self.overall not in self.encoded:
             self.encoded[self.overall] = []
@@ -284,6 +338,9 @@ class Cluster(EncodedStatsBase):
         # Add to overall lists for between species comparison
         self.encoded[self.overall].extend(self.encoded[species])
         self.originals[self.overall].extend([species for o in self.originals[species]])
+
+        if self.generation == 1 or self.generation % self.archive_interval == 0 or is_best:
+            self.archive[species].append(MessageArchive(self.generation, species, self.encoded[species], self.originals[species]))
 
         # Delete messages from this generation
         self.encoded[species] = []
@@ -299,9 +356,23 @@ class Cluster(EncodedStatsBase):
             self.ch[self.overall] = []
         if self.overall not in self.silhouette:
             self.silhouette[self.overall] = []
+        if self.overall not in self.archive:
+            self.archive[self.overall] = []
+        if self.overall not in self.best:
+            self.best[self.overall] = 0
 
         self.ch[self.overall].append(metrics.calinski_harabaz_score(messages, originals))
         self.silhouette[self.overall].append(metrics.silhouette_score(messages, originals))
+
+        # log best score
+        is_best = False
+        print(self.overall, self.silhouette[self.overall][-1]+1, self.best[self.overall] * 1.2, (self.silhouette[self.overall][-1]+1) > self.best[self.overall] * 1.2)
+        if (self.silhouette[self.overall][-1]+1) > self.best[self.overall] * 1.2: # +1 to raise range to [0,2] from [-1,1]
+            is_best = True
+            self.best[self.overall] = self.silhouette[self.overall][-1]+1
+
+        if self.generation % self.archive_interval == 0 or is_best:
+            self.archive[self.overall].append(MessageArchive(self.generation, self.overall, self.encoded[self.overall], self.originals[self.overall]))
 
         # Delete messages from this generation
         self.encoded[self.overall] = []

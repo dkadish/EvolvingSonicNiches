@@ -6,8 +6,11 @@ from functools import reduce
 from math import inf
 
 import graphviz
+import joblib
 import matplotlib.pyplot as plt
 import numpy as np
+
+from stats import Cluster
 
 
 def message_sort_key(message):
@@ -219,34 +222,74 @@ def plot_cohesion(cohesion_avg, cohesion_std, loudness_avg, loudness_std, view=F
     plt.close()
 
 
-def plot_clustering(ch, silhouette, view=False, filename='clustering_stats.svg'):
+def plot_clustering(ch, silhouette, archive, view=False, filename='clustering_stats'):
     """ Plots the silhouette and calinski-harabaz scores for the messages within and between each species. """
     if plt is None:
         warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
         return
 
-    fig, (ax1, ax2) = plt.subplots(2, sharex=True)
-    cycler = plt.cycler(c=['b','g','r'])
+    for species in archive:
+        n_plots = len(archive[species])
+        for i, arch in enumerate(archive[species]):
+            ax = plt.subplot2grid((2, n_plots + 1), (0, i))
 
-    for species, kwargs in zip(ch,cycler):
+            # TODO This doesn't work for ALL and labels is still broken.
+            indices = [np.array(arch.labels) == b for b in set(arch.labels)]
+            # colours = np.sum(np.array(archive[0][0].labels) << np.arange(2,-1,-1), axis=1)
+            # labels = np.array2string(colours, formatter={'int':lambda x: '{:03b}'.format(x)})
+
+            # TODO Try the legand((LABELS),(STUFF)... format
+            axes = []
+
+            for b in set(arch.numeric_labels):
+                index = np.array(arch.numeric_labels) == b
+                # print(index.shape, arch.two_dimensional[index,:].shape)
+                # b_int = b if type(b) == int else sum([b[j] << j for j in range(3)])
+                axes.append(ax.scatter(arch.two_dimensional[index, 0], arch.two_dimensional[index, 1], s=10, alpha=0.75,
+                                       edgecolors='none'))
+
+            ax.set_title(arch.generation)
+            ax.yaxis.set_major_locator(plt.NullLocator())
+            ax.xaxis.set_major_formatter(plt.NullFormatter())
+
+            if i == len(archive[species]) - 1:
+                ax.legend(axes, ['{:03b}'.format(b) for b in set(arch.numeric_labels)], bbox_to_anchor=(1.05, 1),
+                          borderaxespad=0., loc='upper left', fontsize='small', fancybox=True)
+
+        ax = plt.subplot2grid((2, n_plots + 1), (1, 0), colspan=n_plots + 1)
         generation = range(len(ch[species]))
-        ax1.plot(generation, ch[species], label=species, **kwargs)
-        ax2.plot(generation, silhouette[species], label=species, **kwargs)
 
-    fig.subplots_adjust(hspace=0.3)
-    fig.suptitle("Clustering of Messages")
-    plt.xlabel("Generations")
-    ax1.set_ylabel("CH Score")
-    ax2.set_ylabel("Silhouette Score")
-    ax1.grid()
-    ax2.grid()
-    plt.legend(loc="best")
+        if type(species) == int:
+            ax.plot(generation, silhouette[species], label='Whole', c='k')
+            for i in range(3):
+                ax.plot(generation, silhouette['{}.{}'.format(species,i)], label=i)
+        else:
+            ax.plot(generation, silhouette[species], label=species, c='k')
 
-    plt.savefig(filename)
-    if view:
-        plt.show()
+        # fig, (ax1, ax2) = plt.subplots(2, sharex=True)
+        # cycler = plt.cycler(c=['b','g','r'])
+        #
+        # for species, kwargs in zip(ch,cycler):
+        #     generation = range(len(ch[species]))
+        #     ax1.plot(generation, ch[species], label=species, **kwargs)
+        #     ax2.plot(generation, silhouette[species], label=species, **kwargs)
 
-    plt.close()
+        plt.subplots_adjust(hspace=0.3)
+        plt.suptitle("Clustering of Messages in {}".format(species))
+        plt.xlabel("Generations")
+        # ax1.set_ylabel("CH Score")
+        ax.set_ylabel("Silhouette Score")
+        # ax1.grid()
+        ax.grid()
+
+        if type(species) == int:
+            plt.legend(loc="best")
+
+        plt.savefig('{}-{}.svg'.format(filename, species))
+        if view:
+            plt.show()
+
+        plt.close()
 
 
 def plot_scores(species_avg, species_std, bits_avg, bits_std, total_avg, total_std, view=False, filename='scores.svg'):
@@ -404,3 +447,21 @@ def draw_net(config, genome, view=False, filename=None, node_names=None, show_di
     dot.render(filename, view=view)
 
     return dot
+
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Test graphing functions.')
+    parser.add_argument('datafile', help='File containing joblibed run data.')
+
+    subparsers = parser.add_subparsers(help='sub-command help')
+    clustering = subparsers.add_parser('cluster', help='Test Cluster plotting')
+    clustering.set_defaults(func=plot_clustering)
+    clustering.set_defaults(params=['ch', 'silhouette', 'archive'])
+
+    arguments = parser.parse_args()
+
+    data = joblib.load(arguments.datafile)
+    args = [data[a] for a in arguments.params]
+    arguments.func(*args)
