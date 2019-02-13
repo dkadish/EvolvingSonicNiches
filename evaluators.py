@@ -11,22 +11,27 @@ from messaging import Message, MessageType
 
 N_MESSAGES = 10
 
+MESSAGE_SET = [
+          # tuple([0, 0, 0]),
+          tuple([0, 0, 1]),
+          tuple([0, 1, 0]),
+          tuple([0, 1, 1]),
+          tuple([1, 0, 0]),
+          tuple([1, 0, 1]),
+          tuple([1, 1, 0]),
+          tuple([1, 1, 1])
+]
+
 def nonlin_fitness(x):
     f = (tanh(8.0 * (x - 0.5)) + 1.0) / 2.0
     return f
 
 class BaseEvaluator:
 
-    def __init__(self, #encoded: Queue,
-                 messages: Queue, scores: Queue, genomes: Queue, #spectra: Queue, cohesion: Queue,
+    def __init__(self, messages: Queue, scores: Queue, genomes: Queue,
                  decoding_scores: Queue, species_id=0):
-        # self.messages = messages
-
-        # self.encoded Format: (genome id, original message, encoded message)
-        # self.encoded = encoded
         self.messages = messages
 
-        # self.scores Format: (genome id, score)
         self.scores = scores
         self.genomes = genomes
 
@@ -54,13 +59,31 @@ class BaseEvaluator:
 
 class EncoderEvaluator(BaseEvaluator):
 
+    def __init__(self, messages: Queue, scores: Queue, genomes: Queue,
+                 decoding_scores: Queue, species_id=0):
+        super(EncoderEvaluator, self).__init__(messages, scores, genomes,
+                 decoding_scores, species_id)
+
+        self._randomized = False
+
+    def set_randomized_messages(self):
+        self._randomized = True
+
+    @property
+    def randomized_messages(self):
+        return self._randomized
+
     def evaluator(self, genomes, config):
         super(EncoderEvaluator, self).evaluator(genomes, config)
 
         # Generate a set of messages to use for testing
-        messages = [[tuple([int(random.random() > 0.5) for i in range(3)]) for j in range(N_MESSAGES)] for k in
-                    range(len(genomes))]
-
+        if self._randomized:
+            # print('Using randomized messages.')
+            messages = [[tuple([int(random.random() > 0.5) for i in range(3)]) for j in range(N_MESSAGES)] for k in
+                        range(len(genomes))]
+        else:
+            # print('Using standardized message set.')
+            messages = [MESSAGE_SET for k in range(len(genomes))]
 
         # Create the NNs and encode the messages
         for i, (genome_id, genome) in enumerate(genomes):
