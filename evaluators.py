@@ -11,6 +11,9 @@ from messaging import Message, MessageType
 
 N_MESSAGES = 10
 
+def nonlin_fitness(x):
+    f = (tanh(8.0 * (x - 0.5)) + 1.0) / 2.0
+    return f
 
 class BaseEvaluator:
 
@@ -179,10 +182,10 @@ class DecoderEvaluator(BaseEvaluator):
             return None
 
         # How close did the decoder come to determining the correct species
-        fitness = 1 - abs(int(is_same) - decode[-1])
+        fitness = nonlin_fitness(1 - abs(int(is_same) - decode[-1]))
 
         if decided_correct:
-            fitness += (3 - sum([abs(o - d) for o, d in zip(original, decode)]))
+            fitness += sum([nonlin_fitness(1-abs(o - d)) for o, d in zip(original, decode)])
 
         return fitness
 
@@ -205,10 +208,10 @@ class DecoderEvaluator(BaseEvaluator):
         is_same = sender_species == receiver_species  # It is from the same species
         decided_correct = decided_same == is_same  # The decision was correct
 
-        fitness = 1 - abs(int(is_same) - decode[-1])
+        fitness = nonlin_fitness(1 - abs(int(is_same) - decode[-1]))
 
         if decided_correct and is_same:
-            fitness += (3 - sum([abs(o - d) for o, d in zip(original, decode)]))
+            fitness += sum([nonlin_fitness(1 - abs(o - d)) for o, d in zip(original, decode)])
 
         return fitness
 
