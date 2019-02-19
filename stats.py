@@ -325,8 +325,9 @@ class Cluster(EncodedStatsBase):
 
         # log best score
         is_best = False
-        print(species, self.silhouette[species][-1]+1, self.best[species] * 1.2, (self.silhouette[species][-1]+1) > self.best[species] * 1.2)
-        if (self.silhouette[species][-1]+1) > self.best[species] * 1.2: # +1 to raise range to [0,2] from [-1,1]
+        best_multiplier = 1.15
+        print(species, self.silhouette[species][-1]+1, self.best[species] * best_multiplier, (self.silhouette[species][-1]+1) > self.best[species] * best_multiplier)
+        if (self.silhouette[species][-1]+1) > self.best[species] * best_multiplier: # +1 to raise range to [0,2] from [-1,1]
             is_best = True
             self.best[species] = self.silhouette[species][-1]+1
 

@@ -1,4 +1,5 @@
 import random
+from itertools import product
 from math import tanh
 from multiprocessing import Queue
 from random import choice
@@ -22,9 +23,20 @@ MESSAGE_SET = [
           tuple([1, 1, 1])
 ]
 
+CORRECT_FACTOR = 0.1
+
 def nonlin_fitness(x):
     f = (tanh(8.0 * (x - 0.5)) + 1.0) / 2.0
     return f
+
+def correct_multiplier(fitness, original, decode):
+    multiplier = 1.0 + CORRECT_FACTOR
+    for o, d in zip(original, decode):
+        if abs(o - d) < 0.5:
+            fitness *= multiplier
+            multiplier += CORRECT_FACTOR
+
+    return fitness
 
 class BaseEvaluator:
 
@@ -190,6 +202,7 @@ class DecoderEvaluator(BaseEvaluator):
         '''Score the sender.
 
         The sender only gets points for receivers within the species. Other receivers are ignored.
+        Maximum theoretical fitness is 4 * n_messages * n_individuals = 4*7*50 = 1400.
 
         :param original:
         :param decode:
@@ -208,7 +221,8 @@ class DecoderEvaluator(BaseEvaluator):
         fitness = nonlin_fitness(1 - abs(int(is_same) - decode[-1]))
 
         if decided_correct:
-            fitness += sum([nonlin_fitness(1-abs(o - d)) for o, d in zip(original, decode)])
+            fitness += 3*np.product([nonlin_fitness(1-abs(o - d)) for o, d in zip(original, decode)])
+            fitness = correct_multiplier(fitness, original, decode)
 
         return fitness
 
@@ -218,6 +232,14 @@ class DecoderEvaluator(BaseEvaluator):
 
         The receiver is scored similarly to the sender, but it also gets points for correctly identified non-member
         calls.
+
+        Maximum theoretical fitness is 4 * n_messages * n_individuals + n_messages * conspecific_individuals
+        = 4*7*50 + 7*50 = 1400 + 350 = 1750
+
+        With the nonlinearity, the actual theoretical maximum (assuming decode on [0,1]) is 0.99966464987 for each bit.
+        This works out to 2.99698286085 once you take the product of all three bits and multiply by 3.
+        With the multiplication factors (1.0+0.1n) for correct bits and the score for the correct species, this works
+        out to a possible total of 6.85882258922 points per message.
 
         :todo Do I need to bump the scores (add 1.5, for example) for correctly identified non-members?
 
@@ -234,7 +256,8 @@ class DecoderEvaluator(BaseEvaluator):
         fitness = nonlin_fitness(1 - abs(int(is_same) - decode[-1]))
 
         if decided_correct and is_same:
-            fitness += sum([nonlin_fitness(1 - abs(o - d)) for o, d in zip(original, decode)])
+            fitness += 3*np.product([nonlin_fitness(1 - abs(o - d)) for o, d in zip(original, decode)])
+            fitness = correct_multiplier(fitness, original, decode)
 
         return fitness
 

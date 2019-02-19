@@ -163,6 +163,10 @@ def run(config_encoders, config_decoders):
                                         filename='data/%s/%s-%i-message_spectrum.svg' % (
                                         dirname, d.strftime('%y-%m-%d_%H-%M-%S'), i))
 
+        if 'message_spectra' not in pickle_data:
+            pickle_data['message_spectra'] = {}
+        pickle_data['message_spectra'][s.species_id] = message_spectra
+
         # Visualize the cohesion
         cohesion = [np.array(cohesion_stats.avg[s.species_id]), np.array(cohesion_stats.std[s.species_id])]
         loudness = [np.array(loudness_stats.avg[s.species_id]), np.array(loudness_stats.std[s.species_id])]

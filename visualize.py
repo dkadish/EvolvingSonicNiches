@@ -162,7 +162,12 @@ def plot_message_spectrum(spectra, view=False, vmin=None, vmax=None, filename='s
     if vmax is None:
         vmax = max([np.max(spectra[m]) for m in spectra])
 
-    fig, axarr = plt.subplots(3, 3)
+    fig, axarr = plt.subplots(4, 2, sharex=True, sharey=True)
+    fig.add_subplot(111, frameon=False)
+
+    plt.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
+    plt.xlabel('Generation', fontsize='small')
+    plt.ylabel('Spectrum', fontsize='small')
 
     messages = sorted(spectra.keys(), key=message_sort_key)
 
@@ -171,13 +176,12 @@ def plot_message_spectrum(spectra, view=False, vmin=None, vmax=None, filename='s
         p = ax.pcolormesh(spectrum[:, :-1], cmap='rainbow', vmin=vmin, vmax=vmax)
         ax.set_title(message, fontsize='x-small')
 
+        ax.yaxis.set_major_locator(plt.MultipleLocator(2))
         ax.tick_params(labelsize='xx-small')
         ax.label_outer()
 
-    axarr[2, 1].set_xlabel('Generation', fontsize='small')
-    axarr[1, 0].set_ylabel('Spectrum', fontsize='small')
 
-    fig.subplots_adjust(hspace=0.3)
+    fig.subplots_adjust(hspace=0.4)
     cb = fig.colorbar(p, ax=axarr.flat)
     cb.ax.tick_params(labelsize='xx-small')
 
@@ -460,8 +464,19 @@ if __name__ == '__main__':
     clustering.set_defaults(func=plot_clustering)
     clustering.set_defaults(params=['ch', 'silhouette', 'archive'])
 
+    message_spectra = subparsers.add_parser('mspec', help='Test message spectra plotting')
+    message_spectra.set_defaults(func=plot_message_spectrum)
+    get_message_spectra = lambda d: d['message_spectra'][0]
+    message_spectra.set_defaults(params=[get_message_spectra])
+
     arguments = parser.parse_args()
 
     data = joblib.load(arguments.datafile)
-    args = [data[a] for a in arguments.params]
+    args = []
+    for a in arguments.params:
+        if callable(a):
+            args.append(a(data))
+        else:
+            args.append(data[a])
+
     arguments.func(*args)
