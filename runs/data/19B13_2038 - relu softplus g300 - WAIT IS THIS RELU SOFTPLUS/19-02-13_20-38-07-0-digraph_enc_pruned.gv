@@ -1,0 +1,47 @@
+digraph {
+	node [fontsize=9 height=0.2 shape=circle width=0.2]
+	subgraph inputs {
+		node [shape=box style=filled]
+		rank=source
+		0 [fillcolor=lightgray]
+		1 [fillcolor=lightgray]
+		0 -> 1 [style=invis]
+		2 [fillcolor=lightgray]
+		1 -> 2 [style=invis]
+	}
+	subgraph outputs {
+		node [style=filled]
+		rank=sink
+		E0 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E1 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E0 -> E1 [style=invis]
+		E2 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E1 -> E2 [style=invis]
+		E3 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E2 -> E3 [style=invis]
+		E4 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E3 -> E4 [style=invis]
+		E5 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E4 -> E5 [style=invis]
+		E6 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E5 -> E6 [style=invis]
+		E7 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E6 -> E7 [style=invis]
+		E8 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E7 -> E8 [style=invis]
+	}
+	4609 [label="4609
+sigm" fillcolor=lightblue style=filled]
+	4955 [label="4955
+sigm" fillcolor=lightblue style=filled]
+	4339 [label="4339
+sigm" fillcolor=lightblue style=filled]
+	1 -> E4 [color=red penwidth=1.7095128536756488 style=solid]
+	2 -> E7 [color=green penwidth=2.0876253826408666 style=solid]
+	0 -> E6 [color=red penwidth=1.6964179214900925 style=solid]
+	2 -> E1 [color=red penwidth=0.7272820126773313 style=solid]
+	4609 -> E5 [color=red penwidth=0.2581552424096458 style=solid]
+	4339 -> E1 [color=green penwidth=0.6391892871639332 style=solid]
+	4955 -> E2 [color=red penwidth=0.5399666512183249 style=solid]
+	4339 -> 4955 [color=red penwidth=0.6897434128589711 style=solid]
+}
