@@ -378,3 +378,45 @@ class Cluster(EncodedStatsBase):
         # Delete messages from this generation
         self.encoded[self.overall] = []
         self.originals[self.overall] = []
+
+class Messages(EncodedStatsBase):
+
+    def __init__(self, messages: Queue):
+        super(Messages, self).__init__(messages)
+
+        self.encoded = {}
+        self.originals = {}
+
+    def handle_message(self, message: Message):
+        super(Messages, self).handle_message(message)
+
+        species = message.species_id
+        if species not in self.encoded:
+            self.encoded[species] = [[]]
+        if species not in self.originals:
+            self.originals[species] = [[]]
+
+        original = message.message['original']
+        encoded = message.message['encoded']
+        self.originals[species][-1].append(original)
+        self.encoded[species][-1].append(encoded)
+
+    def handle_generation(self, message):
+        super(Messages, self).handle_generation(message)
+
+        species = message.species_id
+
+        # Reformat the last generation as a numpy array
+        self.encoded[species][-1] = np.array(self.encoded[species][-1])
+        self.originals[species][-1] = np.array(self.originals[species][-1])
+
+        # Append a new, empty array
+        self.encoded[species].append([])
+        self.originals[species].append([])
+
+    def handle_finish(self):
+        super(Messages, self).handle_finish()
+
+        for s in self.encoded:
+            if len(self.encoded[s][-1]) == 0:
+                del self.encoded[s][-1]

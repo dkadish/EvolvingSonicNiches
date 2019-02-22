@@ -25,6 +25,8 @@ MESSAGE_SET = [
 
 CORRECT_FACTOR = 0.1
 
+NULL = True
+
 def nonlin_fitness(x):
     f = (tanh(8.0 * (x - 0.5)) + 1.0) / 2.0
     return f
@@ -161,14 +163,15 @@ class DecoderEvaluator(BaseEvaluator):
                 # Ensure decoded_message is between 0 and 1
                 decoded_message = np.clip(decoded_message, 0, 1)
 
-                e_fitness = DecoderEvaluator.sender_fitness(original_message, decoded_message, enc_species_id, self.species_id)
-                d_fitness = DecoderEvaluator.receiver_fitness(original_message, decoded_message, enc_species_id, self.species_id)
+                e_fitness = DecoderEvaluator.sender_fitness(original_message, decoded_message, enc_species_id, self.species_id, NULL)
+                d_fitness = DecoderEvaluator.receiver_fitness(original_message, decoded_message, enc_species_id, self.species_id, NULL)
                 species_score, bit_score, total_score = DecoderEvaluator.score(original_message, decoded_message, enc_species_id, self.species_id)
 
                 if e_fitness is not None:
                     encoder_fitness[enc_genome_id] += e_fitness
 
-                genome.fitness += d_fitness
+                if d_fitness is not None:
+                    genome.fitness += d_fitness
 
                 species_scores[genome_id].append(species_score)
                 if bit_score is not None or total_score is not None:
@@ -198,7 +201,7 @@ class DecoderEvaluator(BaseEvaluator):
         self.decoding_scores.put({'species': species_scores, 'bit': bit_scores, 'total': total_scores})
 
     @staticmethod
-    def sender_fitness(original, decode, sender_species, receiver_species):
+    def sender_fitness(original, decode, sender_species, receiver_species, null=False):
         '''Score the sender.
 
         The sender only gets points for receivers within the species. Other receivers are ignored.
@@ -217,6 +220,11 @@ class DecoderEvaluator(BaseEvaluator):
         if not is_same:
             return None
 
+        if null:
+            fitness = 3 * np.product([nonlin_fitness(1 - abs(o - d)) for o, d in zip(original, decode)])
+            fitness = correct_multiplier(fitness, original, decode)
+            return fitness
+
         # How close did the decoder come to determining the correct species
         fitness = nonlin_fitness(1 - abs(int(is_same) - decode[-1]))
 
@@ -227,7 +235,7 @@ class DecoderEvaluator(BaseEvaluator):
         return fitness
 
     @staticmethod
-    def receiver_fitness(original, decode, sender_species, receiver_species):
+    def receiver_fitness(original, decode, sender_species, receiver_species, null=False):
         '''Score the receiver.
 
         The receiver is scored similarly to the sender, but it also gets points for correctly identified non-member
@@ -252,6 +260,14 @@ class DecoderEvaluator(BaseEvaluator):
         decided_same = decode[-1] >= 0.5  # NN thinks its from the same species
         is_same = sender_species == receiver_species  # It is from the same species
         decided_correct = decided_same == is_same  # The decision was correct
+
+        if null:
+            if not is_same:
+                return None
+
+            fitness = 3 * np.product([nonlin_fitness(1 - abs(o - d)) for o, d in zip(original, decode)])
+            fitness = correct_multiplier(fitness, original, decode)
+            return fitness
 
         fitness = nonlin_fitness(1 - abs(int(is_same) - decode[-1]))
 
