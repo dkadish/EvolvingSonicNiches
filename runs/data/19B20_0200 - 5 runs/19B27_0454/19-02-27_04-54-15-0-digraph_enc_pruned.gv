@@ -1,0 +1,66 @@
+digraph {
+	node [fontsize=9 height=0.2 shape=circle width=0.2]
+	subgraph inputs {
+		node [shape=box style=filled]
+		rank=source
+		0 [fillcolor=lightgray]
+		1 [fillcolor=lightgray]
+		0 -> 1 [style=invis]
+		2 [fillcolor=lightgray]
+		1 -> 2 [style=invis]
+	}
+	subgraph outputs {
+		node [style=filled]
+		rank=sink
+		E0 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E1 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E0 -> E1 [style=invis]
+		E2 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E1 -> E2 [style=invis]
+		E3 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E2 -> E3 [style=invis]
+		E4 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E3 -> E4 [style=invis]
+		E5 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E4 -> E5 [style=invis]
+		E6 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E5 -> E6 [style=invis]
+		E7 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E6 -> E7 [style=invis]
+		E8 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E7 -> E8 [style=invis]
+	}
+	3329 [label="3329
+sigm" fillcolor=lightblue style=filled]
+	5121 [label="5121
+sigm" fillcolor=lightblue style=filled]
+	5480 [label="5480
+sigm" fillcolor=lightblue style=filled]
+	4015 [label="4015
+sigm" fillcolor=lightblue style=filled]
+	4627 [label="4627
+sigm" fillcolor=lightblue style=filled]
+	5173 [label="5173
+sigm" fillcolor=lightblue style=filled]
+	2614 [label="2614
+sigm" fillcolor=lightblue style=filled]
+	3036 [label="3036
+sigm" fillcolor=lightblue style=filled]
+	1 -> E6 [color=green penwidth=1.6268186104543536 style=solid]
+	2 -> E7 [color=red penwidth=2.4531552788121043 style=solid]
+	0 -> E0 [color=red penwidth=2.5444423063106396 style=solid]
+	2614 -> 3036 [color=green penwidth=0.4064532276210565 style=solid]
+	0 -> 2614 [color=red penwidth=0.1604915666916771 style=solid]
+	4627 -> 3329 [color=red penwidth=0.23413010481302718 style=solid]
+	2 -> 2614 [color=red penwidth=0.10053851142241266 style=solid]
+	3036 -> 4627 [color=red penwidth=0.19797508613817877 style=solid]
+	3036 -> 5121 [color=green penwidth=0.29047795171120455 style=solid]
+	5173 -> E4 [color=red penwidth=0.23176121927942236 style=solid]
+	5121 -> 4627 [color=green penwidth=0.3696525834188529 style=solid]
+	4627 -> 5173 [color=red penwidth=0.28797074807870016 style=solid]
+	4015 -> E8 [color=red penwidth=0.7662436890367468 style=solid]
+	3036 -> 5480 [color=green penwidth=0.30512753127333114 style=solid]
+	5480 -> E1 [color=green penwidth=0.24923673207551586 style=solid]
+	3329 -> 5173 [color=red penwidth=0.3141065400276478 style=solid]
+	0 -> 4627 [color=red penwidth=0.1580323250799617 style=solid]
+}

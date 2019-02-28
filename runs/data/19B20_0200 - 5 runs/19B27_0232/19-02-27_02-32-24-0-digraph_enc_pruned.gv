@@ -1,0 +1,57 @@
+digraph {
+	node [fontsize=9 height=0.2 shape=circle width=0.2]
+	subgraph inputs {
+		node [shape=box style=filled]
+		rank=source
+		0 [fillcolor=lightgray]
+		1 [fillcolor=lightgray]
+		0 -> 1 [style=invis]
+		2 [fillcolor=lightgray]
+		1 -> 2 [style=invis]
+	}
+	subgraph outputs {
+		node [style=filled]
+		rank=sink
+		E0 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E1 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E0 -> E1 [style=invis]
+		E2 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E1 -> E2 [style=invis]
+		E3 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E2 -> E3 [style=invis]
+		E4 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E3 -> E4 [style=invis]
+		E5 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E4 -> E5 [style=invis]
+		E6 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E5 -> E6 [style=invis]
+		E7 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E6 -> E7 [style=invis]
+		E8 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		E7 -> E8 [style=invis]
+	}
+	4257 [label="4257
+sigm" fillcolor=lightblue style=filled]
+	5223 [label="5223
+sigm" fillcolor=lightblue style=filled]
+	4335 [label="4335
+sigm" fillcolor=lightblue style=filled]
+	2609 [label="2609
+sigm" fillcolor=lightblue style=filled]
+	4542 [label="4542
+sigm" fillcolor=lightblue style=filled]
+	1 -> E6 [color=red penwidth=2.224341928838134 style=solid]
+	0 -> E7 [color=green penwidth=1.6193871381831617 style=solid]
+	2609 -> E1 [color=red penwidth=0.23925289345172684 style=solid]
+	1 -> E0 [color=green penwidth=0.33817570127032465 style=solid]
+	1 -> 4257 [color=green penwidth=0.1442530535829322 style=solid]
+	4257 -> E0 [color=red penwidth=0.14222433065197027 style=solid]
+	2 -> E4 [color=red penwidth=1.2653821328151205 style=solid]
+	2 -> 4542 [color=green penwidth=0.1822262110401103 style=solid]
+	4257 -> 2609 [color=green penwidth=0.36691713733846987 style=solid]
+	4335 -> E3 [color=green penwidth=0.507777326078539 style=solid]
+	4257 -> 4542 [color=green penwidth=0.29576067424325914 style=solid]
+	4542 -> 5223 [color=red penwidth=0.1206944375561252 style=solid]
+	5223 -> E8 [color=red penwidth=0.8004526396650847 style=solid]
+	1 -> 5223 [color=green penwidth=0.136685425170735 style=solid]
+}

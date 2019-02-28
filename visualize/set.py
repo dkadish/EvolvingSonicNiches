@@ -5,6 +5,7 @@ import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import find_peaks
+from scipy.stats import ttest_ind
 from sklearn.manifold import TSNE
 
 
@@ -35,8 +36,11 @@ def plot_silhouette(silhouette, null=None, cmap_name='PuOr', goi=False, individu
     _plt_unavailable_warning()
 
     # Prepare the data
+    n_alternative = silhouette.shape[0]
+
     generation = np.array(range(silhouette.shape[1]))
     averages = np.average(silhouette, axis=0)
+    # var = np.var(silhouette, axis=0)
     stds = np.std(silhouette, axis=0)
 
     # Prepare the colourmap
@@ -45,31 +49,55 @@ def plot_silhouette(silhouette, null=None, cmap_name='PuOr', goi=False, individu
     # Plot the main data
     _size = 6
     fig, ax = plt.subplots(figsize=(_size, _size / aspect))
-    ax.plot(generation, averages, linewidth=1, label='avg', c=[0,0,0,0.6])#cmap(1 / 7))
+    ax.plot(generation, averages, linewidth=1, label='alt ($n={}$)'.format(n_alternative), c=[0,0,0,0.6])#cmap(1 / 7))
     ax.fill_between(generation, averages - stds, averages + stds, facecolor=[0,0,0,0.2])#cmap(1 / 7), alpha=0.25)
+
+    if null is not None:
+        n_null = null.shape[0]
+        averages_n = np.average(null, axis=0)
+        # var_n = np.var(silhouette, axis=0)
+        stds_n = np.std(null, axis=0)
+        ax.plot(generation, averages_n, linewidth=0.5, label='null ($n={}$)'.format(n_null), c=[0, 0, 0, 0.3])#cmap(4 / 7))
+        ax.fill_between(generation, averages_n - stds_n, averages_n + stds_n, facecolor=[0, 0, 0, 0.05])#cmap(4 / 7), alpha=0.25)
+
+        # Statistical testing
+        # t = (averages - averages_n)/np.sqrt(np.power(var, 2)/n_alternative + np.power(var_n, 2)/n_null)
+        # v = np.power(np.power(var, 2)/n_alternative + np.power(var_n, 2)/n_null, 2) / \
+        #     (np.power(var, 4)/(n_alternative**2*(n_alternative-1)) + np.power(var_n, 4)/(n_null**2*(n_null-1)))
+        statistic, p = ttest_ind(silhouette, null, axis=0, equal_var=False)
+        significant = p < 0.05
+        indices = list(np.nonzero(significant[1:] != significant[:-1])[0] + 1)
+        first_true = significant[0]
+
+        if first_true:
+            indices = [0] + indices
+        indices = indices + [significant.size-1]
+
+        for i, j in zip(indices[:-1:2], indices[1::2]):
+            print(i,j)
+            ax.axvspan(i, j, facecolor=[0, 0, 0, 0.1])
+
+
+        # ax_t = ax.twinx()
+        # ax_t.plot(generation, p, linewidth=1.0, label='null ($n={}$)'.format(n_null), c=[1, 0, 0, 0.5])#cmap(4 / 7))
+        # ax_t.set_ylabel("Significance")
 
     # Plot an individual sample
     if individual is not None:
-        c = [208/255.0, 28/255.0, 139/255.0, 0.6]#cmap(6/7)
+        c = [208 / 255.0, 28 / 255.0, 139 / 255.0, 0.6]  # cmap(6/7)
         # c = c[:-1] + (0.5,)
         ax.plot(generation, silhouette[individual, :], label='example', linewidth=1, color=c)
 
         if goi:
             generations = generations_of_interest(silhouette[individual, :])
-            ax.scatter(generation[generations], silhouette[individual, generations], label='plotted', color=c)
-
-    if null is not None:
-        averages_n = np.average(null, axis=0)
-        stds_n = np.std(null, axis=0)
-        ax.plot(generation, averages_n, linewidth=0.5, label='null avg', c=[0, 0, 0, 0.3])#cmap(4 / 7))
-        ax.fill_between(generation, averages_n - stds_n, averages_n + stds_n, facecolor=[0, 0, 0, 0.05])#cmap(4 / 7), alpha=0.25)
+            ax.scatter(generation[generations], silhouette[individual, generations], label='plots', color=c)
 
 
     # Text
     # fig.suptitle('')
     ax.tick_params(labelsize='xx-small')
-    plt.xlabel('Generation', fontsize='small')
-    plt.ylabel('Silhouette Score', fontsize='small')
+    ax.set_xlabel('Generation', fontsize='small')
+    ax.set_ylabel('Silhouette Score', fontsize='small')
     # plt.grid()
     plt.legend(loc="best", fontsize='x-small')
 
@@ -149,8 +177,29 @@ def plot_clusters(messages, generations=None, cmap_name='RdBu', individual=None,
     _finish(filename, fmt, view)
 
 
-def plot_scores(cmap_name='PuOr', individual=None, aspect=2, view=False, filename='scores', fmt='pdf'):
-    pass
+def plot_scores(scores, cmap_name='Set1', individual=None, aspect=2, view=False, filename='scores', fmt='pdf'):
+    _plt_unavailable_warning()
+
+    # Prepare the colourmap
+    cmap = plt.cm.get_cmap(cmap_name, lut=3)
+
+    # Prepare the data
+    avgs = dict([(s, np.average(scores[s], axis=0)) for s in scores])
+    stds = dict([(s, np.std(scores[s], axis=0)) for s in scores])
+
+    generation = range(avgs['species'].shape[0])
+
+    for i,s in enumerate(scores):
+        plt.plot(generation, avgs[s], c=cmap(i/3), label=s)
+        plt.fill_between(generation, avgs[s] - stds[s], avgs[s] + stds[s], facecolor=cmap(i/3), alpha=0.5)
+
+    plt.title("Scores by generation")
+    plt.xlabel("Generations")
+    plt.ylabel("Scores")
+    plt.grid()
+    plt.legend(loc="best")
+
+    _finish(filename, fmt, view)
 
 
 def plot_fitness(cmap_name='PuOr', individual=None, aspect=2, view=False, filename='fitness', fmt='pdf'):
@@ -198,6 +247,20 @@ def _do_plot_clusters(data, null=None, individual=0):
 
     plot_clusters(messages, generations=peaks, individual=individual, view=True)
 
+def _do_plot_scores(data, null=None, individual=None):
+    scores = {}
+    for d in data:
+        for sp in d['scores']:
+            for sc in d['scores'][sp]:
+                if sc not in scores:
+                    scores[sc] = []
+                scores[sc].append(d['scores'][sp][sc])
+
+    for s in scores:
+        scores[s] = np.array(scores[s])
+
+    plot_scores(scores)
+
 
 if __name__ == '__main__':
     import argparse
@@ -217,6 +280,9 @@ if __name__ == '__main__':
 
     clusters_parser = subparsers.add_parser('cluster', help='Test Cluster plotting')
     clusters_parser.set_defaults(func=_do_plot_clusters)
+
+    scores_parser = subparsers.add_parser('scores', help='Test score plotting')
+    scores_parser.set_defaults(func=_do_plot_scores)
 
     arguments = parser.parse_args()
 
