@@ -202,6 +202,70 @@ def plot_scores(scores, cmap_name='Set1', individual=None, aspect=2, view=False,
     _finish(filename, fmt, view)
 
 
+def plot_n_channels(channels, null=None, view=False, filename='n_channels', fmt='pdf'):
+    _plt_unavailable_warning()
+
+    lower = 10
+    upper = 40
+
+    channels = channels[:-1,:,:]
+
+    generations = range(channels.shape[0])
+    n_channels = []
+
+    for threshold in range(lower,upper):
+        n_channels.append(np.count_nonzero(channels > threshold, axis=1))
+
+    n_channels = np.array(n_channels)
+    run_avg = np.average(n_channels, axis=0)
+    run_std = np.std(n_channels, axis=0)
+
+    avg = np.average(run_avg, axis=1)
+    # std = np.sqrt(np.sum(np.power(run_std,2), axis=1))
+    std = np.std(run_avg, axis=1)
+
+    plt.plot(generations, avg)
+    plt.fill_between(generations, avg - std, avg + std, alpha=0.2)
+
+    if null is not None:
+        channels_null = null[:-1, :, :]
+        print(channels_null.shape)
+
+        n_channels_null = []
+
+        for threshold in range(lower,upper):
+            n_channels_null.append(np.count_nonzero(channels_null > threshold, axis=1))
+
+        n_channels_null = np.array(n_channels_null)
+        run_avg_null = np.average(n_channels_null, axis=0)
+        run_std_null = np.std(n_channels_null, axis=0)
+
+        avg_null = np.average(run_avg_null, axis=1)
+        # std_null = np.sqrt(np.sum(np.power(run_std_null,2), axis=1))
+        std_null = np.std(run_avg_null, axis=1)
+
+        plt.plot(generations, avg_null)
+        plt.fill_between(generations, avg_null - std_null, avg_null + std_null, alpha=0.2)
+
+    # # Plot an individual sample
+    # if individual is not None:
+    #     c = [208 / 255.0, 28 / 255.0, 139 / 255.0, 0.6]  # cmap(6/7)
+    #     # c = c[:-1] + (0.5,)
+    #     ax.plot(generation, silhouette[individual, :], label='example', linewidth=1, color=c)
+    #
+    #     if goi:
+    #         generations = generations_of_interest(silhouette[individual, :])
+    #         ax.scatter(generation[generations], silhouette[individual, generations], label='plots', color=c)
+
+    plt.title("Number of channels used")
+    plt.xlabel("Generations")
+    plt.ylabel("Channels")
+    plt.grid()
+    plt.legend(loc="best")
+
+    _finish(filename, fmt, view)
+
+
 def plot_fitness(cmap_name='PuOr', individual=None, aspect=2, view=False, filename='fitness', fmt='pdf'):
     pass
 
@@ -261,6 +325,25 @@ def _do_plot_scores(data, null=None, individual=None):
 
     plot_scores(scores)
 
+def _do_plot_n_channels(data, null=None, individual=None):
+    channels = []
+    for d in data:
+        for sp in d['message_spectra']:
+            channels.append(d['message_spectra'][sp]['total'])
+
+    channels = np.array(channels)
+    channels = np.moveaxis(channels, 0, -1)
+
+    if null is not None:
+        channels_n = []
+        for d in null:
+            for sp in d['message_spectra']:
+                channels_n.append(d['message_spectra'][sp]['total'])
+        channels_n = np.array(channels_n)
+        channels_n = np.moveaxis(channels_n, 0, -1)
+
+    plot_n_channels(channels, null=channels_n)
+
 
 if __name__ == '__main__':
     import argparse
@@ -283,6 +366,9 @@ if __name__ == '__main__':
 
     scores_parser = subparsers.add_parser('scores', help='Test score plotting')
     scores_parser.set_defaults(func=_do_plot_scores)
+
+    n_channels_parser = subparsers.add_parser('n_channels', help='Test n channel plotting')
+    n_channels_parser.set_defaults(func=_do_plot_n_channels)
 
     arguments = parser.parse_args()
 

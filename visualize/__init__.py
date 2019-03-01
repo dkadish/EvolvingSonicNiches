@@ -331,6 +331,35 @@ def plot_scores(species_avg, species_std, bits_avg, bits_std, total_avg, total_s
 
     plt.close()
 
+def plot_n_channels(channels, view=False, filename='n_channels.pdf'):
+
+    channels = channels[:-1]
+
+    generations = range(channels.shape[0])
+    n_channels = []
+
+    for threshold in range(10,40):
+        n_channels.append(np.count_nonzero(channels > threshold, axis=1))
+
+    n_channels = np.array(n_channels)
+    avg = np.average(n_channels, axis=0)
+    std = np.std(n_channels, axis=0)
+
+    plt.plot(generations, avg)
+    plt.fill_between(generations, avg - std, avg + std, alpha=0.2)
+
+    plt.title("Number of channels used")
+    plt.xlabel("Generations")
+    plt.ylabel("Channels")
+    plt.grid()
+    plt.legend(loc="best")
+
+    plt.savefig(filename)
+    if view:
+        plt.show()
+
+    plt.close()
+
 
 def draw_net(config, genome, view=False, filename=None, node_names=None, show_disabled=True, prune_unused=False,
              prune_disconnected=False, node_colors=None, fmt='svg'):
@@ -468,6 +497,11 @@ if __name__ == '__main__':
     message_spectra.set_defaults(func=plot_message_spectrum)
     get_message_spectra = lambda d: d['message_spectra'][0]
     message_spectra.set_defaults(params=[get_message_spectra])
+
+    message_channels = subparsers.add_parser('n_channels', help='Plot N channels')
+    message_channels.set_defaults(func=plot_n_channels)
+    get_message_channels = lambda d: next(iter(d['message_spectra'].values()))['total']
+    message_channels.set_defaults(params=[get_message_channels])
 
     arguments = parser.parse_args()
 
