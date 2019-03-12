@@ -1,0 +1,48 @@
+digraph {
+	node [fontsize=9 height=0.2 shape=circle width=0.2]
+	subgraph inputs {
+		node [shape=box style=filled]
+		rank=source
+		E0 [fillcolor=lightgray]
+		E1 [fillcolor=lightgray]
+		E0 -> E1 [style=invis]
+		E2 [fillcolor=lightgray]
+		E1 -> E2 [style=invis]
+		E3 [fillcolor=lightgray]
+		E2 -> E3 [style=invis]
+		E4 [fillcolor=lightgray]
+		E3 -> E4 [style=invis]
+		E5 [fillcolor=lightgray]
+		E4 -> E5 [style=invis]
+		E6 [fillcolor=lightgray]
+		E5 -> E6 [style=invis]
+		E7 [fillcolor=lightgray]
+		E6 -> E7 [style=invis]
+		E8 [fillcolor=lightgray]
+		E7 -> E8 [style=invis]
+	}
+	subgraph outputs {
+		node [style=filled]
+		rank=sink
+		0 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		1 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		0 -> 1 [style=invis]
+		2 [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		1 -> 2 [style=invis]
+		S [fillcolor=lightskyblue fontsize=9 height=0.2 shape=circle width=0.2]
+		2 -> S [style=invis]
+	}
+	5369 [label="5369
+sigm" fillcolor=lightblue style=filled]
+	E6 -> 0 [color=red penwidth=2.5259812597724567 style=solid]
+	E8 -> 2 [color=red penwidth=2.138887093862143 style=solid]
+	E0 -> 1 [color=green penwidth=1.185246367213936 style=solid]
+	E5 -> S [color=red penwidth=1.0177456227175525 style=solid]
+	E5 -> 2 [color=red penwidth=0.14431384525869295 style=solid]
+	E6 -> 2 [color=green penwidth=0.3766993286600271 style=solid]
+	E1 -> 0 [color=red penwidth=0.12753256502451532 style=solid]
+	E4 -> 5369 [color=green penwidth=0.24752488653564883 style=solid]
+	5369 -> 1 [color=red penwidth=0.22553703633147532 style=solid]
+	E2 -> 5369 [color=green penwidth=0.1914351110071449 style=solid]
+	E1 -> S [color=red penwidth=0.6209986162270177 style=solid]
+}
