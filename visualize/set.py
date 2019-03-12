@@ -1,5 +1,6 @@
 import os
 import warnings
+from string import ascii_uppercase
 
 import joblib
 import matplotlib.pyplot as plt
@@ -265,6 +266,38 @@ def plot_n_channels(channels, null=None, view=False, filename='n_channels', fmt=
 
     _finish(filename, fmt, view)
 
+def plot_spectrum(spectra, cmap='rainbow', aspect=2.5, view=False,
+                    filename='spectrum', fmt='pdf'):
+    """ Plots the population's average and best fitness. """
+    if plt is None:
+        warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    letters = iter(ascii_uppercase)
+
+    _size = 8
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(_size, _size / aspect))
+
+    fig.add_subplot(111, frameon=False)
+    plt.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
+
+    # plt.title("Use of the communication spectrum by generation")
+    plt.xlabel("Generation")
+    plt.ylabel("Frequency Band")
+    # plt.grid()
+
+    for spectrum, ax in zip(spectra, axes.flat):
+        s = np.array(spectrum).T
+        p = ax.pcolormesh(s[:, :-1], cmap=cmap)
+        ax.tick_params(labelsize='xx-small')
+        ax.set_title('Species {}'.format(next(letters)))
+
+    fig.tight_layout()
+    cb = fig.colorbar(p, ax=axes.flat)
+    cb.ax.tick_params(labelsize='xx-small')
+
+    _finish(filename, fmt, view)
+
 
 def plot_fitness(cmap_name='PuOr', individual=None, aspect=2, view=False, filename='fitness', fmt='pdf'):
     pass
@@ -344,6 +377,17 @@ def _do_plot_n_channels(data, null=None, individual=None):
 
     plot_n_channels(channels, null=channels_n)
 
+def _do_plot_spectra_for_run(data, null=None, individual=0):
+
+    letter = iter(ascii_uppercase)
+
+    d = data[individual]
+
+    spectra = []
+    for sp in d['message_spectra']:
+        spectra.append(d['message_spectra'][sp]['total'])
+
+    plot_spectrum(spectra, cmap='RdPu')
 
 if __name__ == '__main__':
     import argparse
@@ -369,6 +413,9 @@ if __name__ == '__main__':
 
     n_channels_parser = subparsers.add_parser('n_channels', help='Test n channel plotting')
     n_channels_parser.set_defaults(func=_do_plot_n_channels)
+
+    spectra_parser = subparsers.add_parser('spectra', help='Plot spectra for a particular run')
+    spectra_parser.set_defaults(func=_do_plot_spectra_for_run)
 
     arguments = parser.parse_args()
 

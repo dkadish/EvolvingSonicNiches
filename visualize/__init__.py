@@ -126,7 +126,7 @@ def plot_species(statistics, view=False, filename='speciation.svg'):
     plt.close()
 
 
-def plot_spectrum(spectra, view=False, vmin=None, vmax=None, filename='spectrum.svg'):
+def plot_spectrum(spectra, cmap='rainbow', view=False, vmin=None, vmax=None, filename='spectrum.svg'):
     """ Plots the population's average and best fitness. """
     if plt is None:
         warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
@@ -134,7 +134,7 @@ def plot_spectrum(spectra, view=False, vmin=None, vmax=None, filename='spectrum.
 
     spectra = np.array(spectra).T
     fig, ax = plt.subplots()
-    p = ax.pcolormesh(spectra[:, :-1], cmap='rainbow', vmin=vmin, vmax=vmax)
+    p = ax.pcolormesh(spectra[:, :-1], cmap=cmap, vmin=vmin, vmax=vmax)
     fig.colorbar(p, ax=ax)
 
     plt.title("Use of the communication spectrum by generation")
@@ -491,17 +491,22 @@ if __name__ == '__main__':
     subparsers = parser.add_subparsers(help='sub-command help')
     clustering = subparsers.add_parser('cluster', help='Test Cluster plotting')
     clustering.set_defaults(func=plot_clustering)
-    clustering.set_defaults(params=['ch', 'silhouette', 'archive'])
+    clustering.set_defaults(params=['ch', 'silhouette', 'archive'], kwargs={})
+
+    spectrum = subparsers.add_parser('spectrum', help='Test spectral plotting')
+    spectrum.set_defaults(func=plot_spectrum)
+    get_spectrum = lambda d: next(iter(d['message_spectra'].values()))['total']
+    spectrum.set_defaults(params=[get_spectrum], kwargs={'cmap':'RdPu', 'filename':'spectrum.pdf'})
 
     message_spectra = subparsers.add_parser('mspec', help='Test message spectra plotting')
     message_spectra.set_defaults(func=plot_message_spectrum)
     get_message_spectra = lambda d: d['message_spectra'][0]
-    message_spectra.set_defaults(params=[get_message_spectra])
+    message_spectra.set_defaults(params=[get_message_spectra], kwargs={})
 
     message_channels = subparsers.add_parser('n_channels', help='Plot N channels')
     message_channels.set_defaults(func=plot_n_channels)
     get_message_channels = lambda d: next(iter(d['message_spectra'].values()))['total']
-    message_channels.set_defaults(params=[get_message_channels])
+    message_channels.set_defaults(params=[get_message_channels], kwargs={})
 
     arguments = parser.parse_args()
 
@@ -513,4 +518,6 @@ if __name__ == '__main__':
         else:
             args.append(data[a])
 
-    arguments.func(*args)
+    kwargs = arguments.kwargs
+
+    arguments.func(*args, **kwargs)

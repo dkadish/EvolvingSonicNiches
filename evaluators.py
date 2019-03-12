@@ -25,7 +25,7 @@ MESSAGE_SET = [
 
 CORRECT_FACTOR = 0.1
 
-NULL = True
+NULL = False
 
 def nonlin_fitness(x):
     f = (tanh(8.0 * (x - 0.5)) + 1.0) / 2.0
