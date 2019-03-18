@@ -9,6 +9,7 @@ from scipy.signal import find_peaks
 from scipy.stats import ttest_ind
 from sklearn.manifold import TSNE
 
+INDIVIDUAL=5
 
 def _plt_unavailable_warning():
     if plt is None:
@@ -26,7 +27,7 @@ def _finish(filename, fmt, view):
 
 
 def generations_of_interest(silhouette):
-    _prominence = 0.2
+    _prominence = 0.175
     peaks = np.concatenate([find_peaks(silhouette, prominence=_prominence)[0], find_peaks(1 - silhouette, prominence=_prominence)[0],
                             [0, silhouette.shape[-1] - 1]])
     return np.array(sorted(peaks))
@@ -50,7 +51,8 @@ def plot_silhouette(silhouette, null=None, cmap_name='PuOr', goi=False, individu
     # Plot the main data
     _size = 6
     fig, ax = plt.subplots(figsize=(_size, _size / aspect))
-    ax.plot(generation, averages, linewidth=1, label='alt ($n={}$)'.format(n_alternative), c=[0,0,0,0.6])#cmap(1 / 7))
+    # fig, (ax, ax_p) = plt.subplots(nrows=2, sharex=True, figsize=(_size, _size / aspect), gridspec_kw={'height_ratios':[2, 1]})
+    ax.plot(generation, averages, linewidth=1, label='$H_1 \quad (n={})$'.format(n_alternative), c=[0,0,0,0.6])#cmap(1 / 7))
     ax.fill_between(generation, averages - stds, averages + stds, facecolor=[0,0,0,0.2])#cmap(1 / 7), alpha=0.25)
 
     if null is not None:
@@ -58,7 +60,7 @@ def plot_silhouette(silhouette, null=None, cmap_name='PuOr', goi=False, individu
         averages_n = np.average(null, axis=0)
         # var_n = np.var(silhouette, axis=0)
         stds_n = np.std(null, axis=0)
-        ax.plot(generation, averages_n, linewidth=0.5, label='null ($n={}$)'.format(n_null), c=[0, 0, 0, 0.3])#cmap(4 / 7))
+        ax.plot(generation, averages_n, linewidth=0.5, label='$H_0 \quad (n={})$'.format(n_null), c=[0, 0, 0, 0.3])#cmap(4 / 7))
         ax.fill_between(generation, averages_n - stds_n, averages_n + stds_n, facecolor=[0, 0, 0, 0.05])#cmap(4 / 7), alpha=0.25)
 
         # Statistical testing
@@ -66,7 +68,7 @@ def plot_silhouette(silhouette, null=None, cmap_name='PuOr', goi=False, individu
         # v = np.power(np.power(var, 2)/n_alternative + np.power(var_n, 2)/n_null, 2) / \
         #     (np.power(var, 4)/(n_alternative**2*(n_alternative-1)) + np.power(var_n, 4)/(n_null**2*(n_null-1)))
         statistic, p = ttest_ind(silhouette, null, axis=0, equal_var=False)
-        significant = p < 0.05
+        significant = p < 0.01
         indices = list(np.nonzero(significant[1:] != significant[:-1])[0] + 1)
         first_true = significant[0]
 
@@ -74,24 +76,29 @@ def plot_silhouette(silhouette, null=None, cmap_name='PuOr', goi=False, individu
             indices = [0] + indices
         indices = indices + [significant.size-1]
 
+        print('Average P-Value (Total): {}'.format(np.average(p)))
         for i, j in zip(indices[:-1:2], indices[1::2]):
             print(i,j)
-            ax.axvspan(i, j, facecolor=[0, 0, 0, 0.1])
+            print('Average P-Value ({}): {}'.format(j-i, np.average(p[i:j])))
+            print('Max P-Value ({}): at Gen {} = {}'.format(j-i, np.argmax(p[i:j]), np.max(p[i:j])))
+            # ax.axvspan(i, j, facecolor=[0, 0, 0, 0.1])
 
-
-        # ax_t = ax.twinx()
-        # ax_t.plot(generation, p, linewidth=1.0, label='null ($n={}$)'.format(n_null), c=[1, 0, 0, 0.5])#cmap(4 / 7))
-        # ax_t.set_ylabel("Significance")
+        # ax_p.semilogy(generation, p, linewidth=1.0, label='P-value'.format(n_null), c=[1, 0, 0, 0.5])
+        # ax_p.semilogy(generation, 0.05*np.ones(shape=p.shape), linewidth=1.0, label='P=0.05'.format(n_null), c=[0, 1, 0, 0.5])
+        # ax_p.tick_params(labelsize='xx-small')
+        # ax_p.set_ylabel("Significance", fontsize='x-small')
+        # ax_p.set_ylim(top=1.0)
+        # ax_p.legend(loc="best", fontsize='x-small')
 
     # Plot an individual sample
     if individual is not None:
-        c = [208 / 255.0, 28 / 255.0, 139 / 255.0, 0.6]  # cmap(6/7)
+        c = [208 / 255.0, 28 / 255.0, 139 / 255.0, 0.6]  # cmap(6/7), #D01C8B
         # c = c[:-1] + (0.5,)
         ax.plot(generation, silhouette[individual, :], label='example', linewidth=1, color=c)
 
         if goi:
             generations = generations_of_interest(silhouette[individual, :])
-            ax.scatter(generation[generations], silhouette[individual, generations], label='plots', color=c)
+            ax.scatter(generation[generations], silhouette[individual, generations], label='plotted', color=c)
 
 
     # Text
@@ -100,7 +107,7 @@ def plot_silhouette(silhouette, null=None, cmap_name='PuOr', goi=False, individu
     ax.set_xlabel('Generation', fontsize='small')
     ax.set_ylabel('Silhouette Score', fontsize='small')
     # plt.grid()
-    plt.legend(loc="best", fontsize='x-small')
+    ax.legend(loc="best", fontsize='x-small')
 
     _finish(filename, fmt, view)
 
@@ -146,7 +153,9 @@ def plot_clusters(messages, generations=None, cmap_name='RdBu', individual=None,
         ax = plt.subplot2grid((1, n_plots), (0, i))
         # Prepare the colourmap
         cmap = plt.cm.get_cmap(cmap_name, lut=7)
-        colours = cmap([0.25, 0.75])
+        # colours = cmap([0.25, 0.75])
+        colours = np.array([[216, 193, 51, 255],
+                            [5, 148, 157, 255]])/255.0
         colours[:, -1] = 0.25  # Set alpha
 
         # TODO This doesn't work for ALL and labels is still broken.
@@ -178,26 +187,39 @@ def plot_clusters(messages, generations=None, cmap_name='RdBu', individual=None,
     _finish(filename, fmt, view)
 
 
-def plot_scores(scores, cmap_name='Set1', individual=None, aspect=2, view=False, filename='scores', fmt='pdf'):
+def plot_scores(scores, cmap_name='PuRd', individual=None, aspect=2, view=False, filename='scores', fmt='pdf'):
     _plt_unavailable_warning()
 
     # Prepare the colourmap
     cmap = plt.cm.get_cmap(cmap_name, lut=3)
 
+    colours = np.array([[216, 193, 51, 255],
+                        [5, 148, 157, 255],
+                        [208, 28, 139, 255]]) / 255.0
+
     # Prepare the data
     avgs = dict([(s, np.average(scores[s], axis=0)) for s in scores])
     stds = dict([(s, np.std(scores[s], axis=0)) for s in scores])
+    if individual is not None:
+        inds = dict([(s, scores[s][individual]) for s in scores])
 
     generation = range(avgs['species'].shape[0])
 
-    for i,s in enumerate(scores):
-        plt.plot(generation, avgs[s], c=cmap(i/3), label=s)
-        plt.fill_between(generation, avgs[s] - stds[s], avgs[s] + stds[s], facecolor=cmap(i/3), alpha=0.5)
+    adj = 3
+    den = 6
+
+    for (i,s), c in zip(enumerate(scores), colours):
+        plt.plot(generation, avgs[s], c=c, label=s)
+        plt.fill_between(generation, avgs[s] - stds[s], avgs[s] + stds[s], facecolor=c, alpha=0.5)
+
+        if individual is not None:
+            plt.plot(generation, inds[s], c=c, alpha=0.75, linestyle=':')
 
     plt.title("Scores by generation")
-    plt.xlabel("Generations")
+    plt.xlabel("Generation")
     plt.ylabel("Scores")
     plt.grid()
+    plt.gca().set_ylim(bottom=0,top=1)
     plt.legend(loc="best")
 
     _finish(filename, fmt, view)
@@ -266,7 +288,7 @@ def plot_n_channels(channels, null=None, view=False, filename='n_channels', fmt=
 
     _finish(filename, fmt, view)
 
-def plot_spectrum(spectra, cmap='rainbow', aspect=2.5, view=False,
+def plot_spectrum(spectra, cmap='rainbow', aspect=3.5, view=False,
                     filename='spectrum', fmt='pdf'):
     """ Plots the population's average and best fitness. """
     if plt is None:
@@ -275,14 +297,13 @@ def plot_spectrum(spectra, cmap='rainbow', aspect=2.5, view=False,
 
     letters = iter(ascii_uppercase)
 
-    _size = 8
+    _size = 10
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(_size, _size / aspect))
 
     fig.add_subplot(111, frameon=False)
     plt.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
 
     # plt.title("Use of the communication spectrum by generation")
-    plt.xlabel("Generation")
     plt.ylabel("Frequency Band")
     # plt.grid()
 
@@ -290,11 +311,14 @@ def plot_spectrum(spectra, cmap='rainbow', aspect=2.5, view=False,
         s = np.array(spectrum).T
         p = ax.pcolormesh(s[:, :-1], cmap=cmap)
         ax.tick_params(labelsize='xx-small')
+        ax.set_yticks(np.arange(0.5, 9.0, 1.0))
+        ax.set_yticklabels(np.arange(0, 9, 1))
         ax.set_title('Species {}'.format(next(letters)))
+        ax.set_xlabel("Generation")
 
     fig.tight_layout()
     cb = fig.colorbar(p, ax=axes.flat)
-    cb.ax.tick_params(labelsize='xx-small')
+    cb.ax.tick_params(labelsize='x-small')
 
     _finish(filename, fmt, view)
 
@@ -307,12 +331,12 @@ def _get_species(data):
     return list(data['scores'].keys())
 
 
-def _do_plot_all(data, null=None, individual=0):
+def _do_plot_all(data, null=None, individual=INDIVIDUAL):
     _do_plot_silhouette(data, null, individual, goi=True)
     _do_plot_clusters(data, null, individual)
 
 
-def _do_plot_silhouette(data, null=None, individual=None, goi=False):
+def _do_plot_silhouette(data, null=None, individual=INDIVIDUAL, goi=True):
     silhouette = list(map(lambda d: d['silhouette']['ALL'], data))
     silhouette = np.array(silhouette)
 
@@ -324,7 +348,7 @@ def _do_plot_silhouette(data, null=None, individual=None, goi=False):
     plot_silhouette(silhouette, null=silhouette_n, goi=goi, individual=individual, view=True)
 
 
-def _do_plot_clusters(data, null=None, individual=0):
+def _do_plot_clusters(data, null=None, individual=INDIVIDUAL):
     silhouette = list(map(lambda d: d['silhouette']['ALL'], data))
     silhouette = np.array(silhouette[individual])
 
@@ -342,7 +366,7 @@ def _do_plot_clusters(data, null=None, individual=0):
         o = [i * np.ones(g.shape[0]) for i, g in enumerate(generation)]
         messages['group'].append(np.append(*o, axis=0))
 
-    plot_clusters(messages, generations=peaks, individual=individual, view=True)
+    plot_clusters(messages, cmap_name='RdPu', generations=peaks, individual=individual, view=True)
 
 def _do_plot_scores(data, null=None, individual=None):
     scores = {}
@@ -356,7 +380,7 @@ def _do_plot_scores(data, null=None, individual=None):
     for s in scores:
         scores[s] = np.array(scores[s])
 
-    plot_scores(scores)
+    plot_scores(scores, individual=individual)
 
 def _do_plot_n_channels(data, null=None, individual=None):
     channels = []
@@ -377,17 +401,23 @@ def _do_plot_n_channels(data, null=None, individual=None):
 
     plot_n_channels(channels, null=channels_n)
 
-def _do_plot_spectra_for_run(data, null=None, individual=0):
+def _do_plot_spectra_for_run(data, null=None, individual=None):
 
     letter = iter(ascii_uppercase)
 
-    d = data[individual]
+    if individual is None:
+        individuals = range(len(data))
+    else:
+        individuals = [individual]
 
-    spectra = []
-    for sp in d['message_spectra']:
-        spectra.append(d['message_spectra'][sp]['total'])
+    for i in individuals:
+        d = data[i]
 
-    plot_spectrum(spectra, cmap='RdPu')
+        spectra = []
+        for sp in d['message_spectra']:
+            spectra.append(d['message_spectra'][sp]['total'])
+
+        plot_spectrum(spectra, cmap='RdPu', filename='spectrum-{}'.format(i))
 
 if __name__ == '__main__':
     import argparse
@@ -424,6 +454,7 @@ if __name__ == '__main__':
     for root, dirs, files in os.walk(arguments.dir):
         for file in files:
             if file.strip() == arguments.datafile.strip():
+                print('{}: {}'.format(len(datafiles), root))
                 datafiles.append(os.path.join(root, file))
 
     data = []
