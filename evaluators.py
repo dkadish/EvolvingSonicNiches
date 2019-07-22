@@ -83,6 +83,12 @@ class EncoderEvaluator(BaseEvaluator):
     def set_randomized_messages(self):
         self._randomized = True
 
+    def set_noise_parameters(self, channel=None):
+        pass
+
+    def add_noise(self, message):
+        return message
+
     @property
     def randomized_messages(self):
         return self._randomized
@@ -104,11 +110,10 @@ class EncoderEvaluator(BaseEvaluator):
             net = neat.nn.FeedForwardNetwork.create(genome, config)
             for original_message in messages[i]:
                 encoded_message = net.activate(original_message)
-                # self.encoded.put((self.species_id, genome_id, original_message, encoded_message))
+                encoded_message = self.add_noise(encoded_message)
                 self.messages.put(Message.Encoded(self.species_id, genome_id, original_message, encoded_message))
 
         # Send Finished Message
-        # self.encoded.put(False) # FIXME encorporate into messages
         self.messages.put(Message.Generation(self.species_id))
 
         # Wait for the scores from the decoders and evaluate
