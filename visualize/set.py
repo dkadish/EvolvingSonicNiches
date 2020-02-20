@@ -2,12 +2,15 @@ import os
 import warnings
 from string import ascii_uppercase
 
+import humanize
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.signal import find_peaks
 from scipy.stats import ttest_ind
 from sklearn.manifold import TSNE
+
+from thesne.model.dynamic_tsne import dynamic_tsne
 
 INDIVIDUAL=5
 
@@ -19,7 +22,7 @@ def _plt_unavailable_warning():
 
 def _finish(filename, fmt, view):
     # Save and show
-    plt.savefig('{}.{}'.format(filename, fmt), bbox_inches='tight')
+    plt.savefig('{}.{}'.format(filename, fmt), bbox_inches='tight', dpi=1200)
     if view:
         plt.show()
 
@@ -186,8 +189,104 @@ def plot_clusters(messages, generations=None, cmap_name='RdBu', individual=None,
 
     _finish(filename, fmt, view)
 
+def plot_cluster_video(messages, cmap_name='RdBu', aspect=2, view=False,
+                  filename='clusters',
+                  fmt='png', _last_generation=300, align_images=False):
+    '''
+
+    :param silhouette:
+    :param messages: { 'group': [ generation 0 (np.array), ..., generation N], 'encoded': }
+    :param cmap_name:
+    :param aspect:
+    :param view:
+    :param filename:
+    :param fmt:
+    :return:
+    '''
+    _plt_unavailable_warning()
+
+    generations = list(range(0, _last_generation))
+    group = messages['group']
+    encoded = messages['encoded']
+
+    n_plots = len(generations)
+
+    # Find the 2d representations
+    two_d = dict([(g, TSNE(n_components=2).fit_transform(encoded[g])) for g in generations])
+
+    if align_images:
+        # Match the cluster centriods from each cluster, use https://yutsumura.com/find-a-matrix-that-maps-given-vectors-to-given-vectors/
+        transformed = {}
+        # g = generations[0]
+        # mean = np.array([np.mean(two_d[g][group[g] == 0], axis=0), np.mean(two_d[g][group[g] == 1], axis=0)]).T
+        mean = np.array([[0.1,0],[0,0.1]])
+
+        for g in generations:
+            mean0 = np.mean(two_d[g][group[g]==0], axis=0)
+            mean1 = np.mean(two_d[g][group[g]==1], axis=0)
+            X = np.array([mean0, mean1]).T
+            # mean = (mean + X) / 2
+            Xinv = np.linalg.inv(X)
+            A = np.dot(mean, Xinv)
+
+            u, s, vh = np.linalg.svd(A)
+            D = np.array([[1, 0], [0, np.linalg.det(np.dot(u, vh))]])
+            R = np.dot(u, vh)
+
+            transformed[g] = np.dot(R, two_d[g].T).T
+    else:
+        transformed = two_d
+
+    min_2d = 1.25 * np.min([np.min(transformed[g], axis=0) for g in generations], axis=0)
+    max_2d = 1.25 * np.max([np.max(transformed[g], axis=0) for g in generations], axis=0)
+    min_x, min_y, max_x, max_y = min_2d[0], min_2d[1], max_2d[0], max_2d[1]
+
+    # Plot parameters
+    _size = 6
+    for i, g in enumerate(generations):
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(_size, _size / aspect))
+
+        # ax = plt.subplot2grid((1, n_plots), (0, i))
+        # Prepare the colourmap
+        cmap = plt.cm.get_cmap(cmap_name, lut=7)
+        # colours = cmap([0.25, 0.75])
+        colours = np.array([[216, 193, 51, 255],
+                            [5, 148, 157, 255]]) / 255.0
+        colours[:, -1] = 0.25  # Set alpha
+
+        # TODO This doesn't work for ALL and labels is still broken.
+        indices = [group[g] == b for b in set(group[g])]
+
+        # TODO Try the legand((LABELS),(STUFF)... format
+        axes = []
+
+        for b, c in zip(set(group[g]), colours):
+            index = group[g] == b
+            axes.append(ax.scatter(transformed[g][index, 0], transformed[g][index, 1], s=5,
+                                   edgecolors='none', color=c))
+
+        # min_2d = 1.5 * np.min(two_d[g], axis=0)
+        # max_2d = 1.5 * np.max(two_d[g], axis=0)
+        # min_x, min_y, max_x, max_y = min_2d[0], min_2d[1], max_2d[0], max_2d[1]
+
+        ax.set_title(g)
+        ax.yaxis.set_major_locator(plt.NullLocator())
+        ax.xaxis.set_major_formatter(plt.NullFormatter())
+        ax.set_aspect('equal', share=True)
+        ax.set_xlim(left=min_x, right=max_x)
+        ax.set_ylim(bottom=min_y, top=max_y)
+
+        # if g == generations[-1]:
+        #     ax.legend(axes, [b for b in set(group[g])], bbox_to_anchor=(1.05, 1),
+        #               borderaxespad=0., loc='upper left', fontsize='small', fancybox=True)
+
+        fig.tight_layout()
+
+        _finish('{}_{:03d}'.format(filename,i), fmt, view)
+
 
 def plot_scores(scores, cmap_name='PuRd', individual=None, aspect=2, view=False, filename='scores', fmt='pdf'):
+
     _plt_unavailable_warning()
 
     # Prepare the colourmap
@@ -359,7 +458,7 @@ def _do_plot_clusters(data, null=None, individual=INDIVIDUAL):
         'encoded': []
     }
 
-    encoded = data[0]['messages']['encoded']
+    encoded = data[individual]['messages']['encoded']
 
     for generation in zip(*[encoded[e] for e in sorted(encoded.keys())]):
         messages['encoded'].append(np.append(*generation, axis=0))
@@ -367,6 +466,26 @@ def _do_plot_clusters(data, null=None, individual=INDIVIDUAL):
         messages['group'].append(np.append(*o, axis=0))
 
     plot_clusters(messages, cmap_name='RdPu', generations=peaks, individual=individual, view=True)
+
+
+def _do_plot_cluster_video(data, null=None, individual=INDIVIDUAL):
+    messages = {
+        'group': [],
+        'encoded': []
+    }
+
+    try:
+        encoded = data[individual]['messages']['encoded']
+    except IndexError as e:
+        print('Index error. No run number {} in the set. Proceeding with first sample.'.format(individual))
+        encoded = data[0]['messages']['encoded']
+
+    for generation in zip(*[encoded[e] for e in sorted(encoded.keys())]):
+        messages['encoded'].append(np.append(*generation, axis=0))
+        o = [i * np.ones(g.shape[0]) for i, g in enumerate(generation)]
+        messages['group'].append(np.append(*o, axis=0))
+
+    plot_cluster_video(messages, cmap_name='RdPu', view=True)
 
 def _do_plot_scores(data, null=None, individual=None):
     scores = {}
@@ -438,6 +557,9 @@ if __name__ == '__main__':
     clusters_parser = subparsers.add_parser('cluster', help='Test Cluster plotting')
     clusters_parser.set_defaults(func=_do_plot_clusters)
 
+    cluster_video_parser = subparsers.add_parser('cluster_video', help='Cluster Video plotting')
+    cluster_video_parser.set_defaults(func=_do_plot_cluster_video)
+
     scores_parser = subparsers.add_parser('scores', help='Test score plotting')
     scores_parser.set_defaults(func=_do_plot_scores)
 
@@ -448,6 +570,10 @@ if __name__ == '__main__':
     spectra_parser.set_defaults(func=_do_plot_spectra_for_run)
 
     arguments = parser.parse_args()
+
+    import time
+
+    start = time.time()
 
     datafiles = []
     # Load data files
@@ -476,6 +602,9 @@ if __name__ == '__main__':
         null = None
 
     arguments.func(data, null)
+
+    end = time.time()
+    print(humanize.naturaltime(end - start))
 
 # import numpy as np
 # import matplotlib.pyplot as plt
