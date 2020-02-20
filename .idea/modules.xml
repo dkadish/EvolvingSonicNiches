@@ -4,6 +4,7 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/EvolvingNiches.iml" filepath="$PROJECT_DIR$/.idea/EvolvingNiches.iml" />
       <module fileurl="file://$PROJECT_DIR$/../neat-python/.idea/neat-python.iml" filepath="$PROJECT_DIR$/../neat-python/.idea/neat-python.iml" />
+      <module fileurl="file://$USER_HOME$/PycharmProjects/thesne/.idea/thesne.iml" filepath="$USER_HOME$/PycharmProjects/thesne/.idea/thesne.iml" />
     </modules>
   </component>
 </project>

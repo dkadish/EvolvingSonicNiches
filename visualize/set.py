@@ -22,7 +22,7 @@ def _plt_unavailable_warning():
 
 def _finish(filename, fmt, view):
     # Save and show
-    plt.savefig('{}.{}'.format(filename, fmt), bbox_inches='tight')
+    plt.savefig('{}.{}'.format(filename, fmt), bbox_inches='tight', dpi=1200)
     if view:
         plt.show()
 
@@ -191,13 +191,12 @@ def plot_clusters(messages, generations=None, cmap_name='RdBu', individual=None,
 
 def plot_cluster_video(messages, cmap_name='RdBu', aspect=2, view=False,
                   filename='clusters',
-                  fmt='pdf', _last_generation=50):
+                  fmt='png', _last_generation=300, align_images=False):
     '''
 
     :param silhouette:
     :param messages: { 'group': [ generation 0 (np.array), ..., generation N], 'encoded': }
     :param cmap_name:
-    :param individual:
     :param aspect:
     :param view:
     :param filename:
@@ -212,18 +211,38 @@ def plot_cluster_video(messages, cmap_name='RdBu', aspect=2, view=False,
 
     n_plots = len(generations)
 
-    two_d = dynamic_tsne([encoded[g] for g in generations], perplexity=70, lmbda=0.1, n_epochs=50)
-                    # perplexity=70, lmbda=0.1, verbose=1, sigma_iters=50,
-                    #   random_state=seed)
+    # Find the 2d representations
+    two_d = dict([(g, TSNE(n_components=2).fit_transform(encoded[g])) for g in generations])
 
-    # two_d = dict([(g, TSNE(n_components=2).fit_transform(encoded[g])) for g in generations])
-    min_2d = 1.5 * np.min([np.min(two_d[g], axis=0) for g in generations], axis=0)
-    max_2d = 1.5 * np.max([np.max(two_d[g], axis=0) for g in generations], axis=0)
+    if align_images:
+        # Match the cluster centriods from each cluster, use https://yutsumura.com/find-a-matrix-that-maps-given-vectors-to-given-vectors/
+        transformed = {}
+        # g = generations[0]
+        # mean = np.array([np.mean(two_d[g][group[g] == 0], axis=0), np.mean(two_d[g][group[g] == 1], axis=0)]).T
+        mean = np.array([[0.1,0],[0,0.1]])
+
+        for g in generations:
+            mean0 = np.mean(two_d[g][group[g]==0], axis=0)
+            mean1 = np.mean(two_d[g][group[g]==1], axis=0)
+            X = np.array([mean0, mean1]).T
+            # mean = (mean + X) / 2
+            Xinv = np.linalg.inv(X)
+            A = np.dot(mean, Xinv)
+
+            u, s, vh = np.linalg.svd(A)
+            D = np.array([[1, 0], [0, np.linalg.det(np.dot(u, vh))]])
+            R = np.dot(u, vh)
+
+            transformed[g] = np.dot(R, two_d[g].T).T
+    else:
+        transformed = two_d
+
+    min_2d = 1.25 * np.min([np.min(transformed[g], axis=0) for g in generations], axis=0)
+    max_2d = 1.25 * np.max([np.max(transformed[g], axis=0) for g in generations], axis=0)
     min_x, min_y, max_x, max_y = min_2d[0], min_2d[1], max_2d[0], max_2d[1]
 
     # Plot parameters
     _size = 6
-
     for i, g in enumerate(generations):
         fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(_size, _size / aspect))
 
@@ -241,12 +260,14 @@ def plot_cluster_video(messages, cmap_name='RdBu', aspect=2, view=False,
         # TODO Try the legand((LABELS),(STUFF)... format
         axes = []
 
-        two_d[g] = TSNE(n_components=2).fit_transform(encoded[g])
-
         for b, c in zip(set(group[g]), colours):
             index = group[g] == b
-            axes.append(ax.scatter(two_d[g][index, 0], two_d[g][index, 1], s=5,
+            axes.append(ax.scatter(transformed[g][index, 0], transformed[g][index, 1], s=5,
                                    edgecolors='none', color=c))
+
+        # min_2d = 1.5 * np.min(two_d[g], axis=0)
+        # max_2d = 1.5 * np.max(two_d[g], axis=0)
+        # min_x, min_y, max_x, max_y = min_2d[0], min_2d[1], max_2d[0], max_2d[1]
 
         ax.set_title(g)
         ax.yaxis.set_major_locator(plt.NullLocator())
@@ -261,10 +282,11 @@ def plot_cluster_video(messages, cmap_name='RdBu', aspect=2, view=False,
 
         fig.tight_layout()
 
-        _finish('{}_{}'.format(filename,i), fmt, view)
+        _finish('{}_{:03d}'.format(filename,i), fmt, view)
 
 
 def plot_scores(scores, cmap_name='PuRd', individual=None, aspect=2, view=False, filename='scores', fmt='pdf'):
+
     _plt_unavailable_warning()
 
     # Prepare the colourmap
@@ -436,7 +458,7 @@ def _do_plot_clusters(data, null=None, individual=INDIVIDUAL):
         'encoded': []
     }
 
-    encoded = data[0]['messages']['encoded']
+    encoded = data[individual]['messages']['encoded']
 
     for generation in zip(*[encoded[e] for e in sorted(encoded.keys())]):
         messages['encoded'].append(np.append(*generation, axis=0))
@@ -446,13 +468,17 @@ def _do_plot_clusters(data, null=None, individual=INDIVIDUAL):
     plot_clusters(messages, cmap_name='RdPu', generations=peaks, individual=individual, view=True)
 
 
-def _do_plot_cluster_video(data, null=None):
+def _do_plot_cluster_video(data, null=None, individual=INDIVIDUAL):
     messages = {
         'group': [],
         'encoded': []
     }
 
-    encoded = data[0]['messages']['encoded']
+    try:
+        encoded = data[individual]['messages']['encoded']
+    except IndexError as e:
+        print('Index error. No run number {} in the set. Proceeding with first sample.'.format(individual))
+        encoded = data[0]['messages']['encoded']
 
     for generation in zip(*[encoded[e] for e in sorted(encoded.keys())]):
         messages['encoded'].append(np.append(*generation, axis=0))
