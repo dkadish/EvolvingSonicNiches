@@ -10,8 +10,6 @@ import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 
-from stats import Cluster
-
 
 def message_sort_key(message):
     if type(message) == str:
@@ -150,8 +148,18 @@ def plot_spectrum(spectra, cmap='rainbow', view=False, vmin=None, vmax=None, fil
     plt.close()
 
 
-def plot_message_spectrum(spectra, view=False, vmin=None, vmax=None, filename='spectrum.svg'):
-    """ Plots the population's average and best fitness. """
+def plot_message_spectrum(spectra: dict, view: bool = False, vmin: float = None, vmax: float = None,
+                          filename: str = 'spectrum.svg'):
+    '''Plots the population's average and best fitness.
+
+    :param spectra:
+    :param view:
+    :param vmin: Minimum value for the colourbar range
+    :param vmax: Maximum value for the colourbar range
+    :param filename:
+    :return:
+    '''
+
     if plt is None:
         warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
         return
@@ -179,7 +187,6 @@ def plot_message_spectrum(spectra, view=False, vmin=None, vmax=None, filename='s
         ax.yaxis.set_major_locator(plt.MultipleLocator(2))
         ax.tick_params(labelsize='xx-small')
         ax.label_outer()
-
 
     fig.subplots_adjust(hspace=0.4)
     cb = fig.colorbar(p, ax=axarr.flat)
@@ -266,7 +273,7 @@ def plot_clustering(ch, silhouette, archive, view=False, filename='clustering_st
         if type(species) == int:
             ax.plot(generation, silhouette[species], label='Whole', c='k')
             for i in range(3):
-                ax.plot(generation, silhouette['{}.{}'.format(species,i)], label=i)
+                ax.plot(generation, silhouette['{}.{}'.format(species, i)], label=i)
         else:
             ax.plot(generation, silhouette[species], label=species, c='k')
 
@@ -331,14 +338,14 @@ def plot_scores(species_avg, species_std, bits_avg, bits_std, total_avg, total_s
 
     plt.close()
 
-def plot_n_channels(channels, view=False, filename='n_channels.pdf'):
 
+def plot_n_channels(channels, view=False, filename='n_channels.pdf'):
     channels = channels[:-1]
 
     generations = range(channels.shape[0])
     n_channels = []
 
-    for threshold in range(10,40):
+    for threshold in range(10, 40):
         n_channels.append(np.count_nonzero(channels > threshold, axis=1))
 
     n_channels = np.array(n_channels)
@@ -496,7 +503,7 @@ if __name__ == '__main__':
     spectrum = subparsers.add_parser('spectrum', help='Test spectral plotting')
     spectrum.set_defaults(func=plot_spectrum)
     get_spectrum = lambda d: next(iter(d['message_spectra'].values()))['total']
-    spectrum.set_defaults(params=[get_spectrum], kwargs={'cmap':'RdPu', 'filename':'spectrum.pdf'})
+    spectrum.set_defaults(params=[get_spectrum], kwargs={'cmap': 'RdPu', 'filename': 'spectrum.pdf'})
 
     message_spectra = subparsers.add_parser('mspec', help='Test message spectra plotting')
     message_spectra.set_defaults(func=plot_message_spectrum)

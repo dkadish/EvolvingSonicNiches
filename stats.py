@@ -57,6 +57,11 @@ class EncodedStatsBase:
 
 
 class Spectrum(EncodedStatsBase):
+    """Spectrum for all messages sent by a given species.
+
+    For each generation, aggregates messages sent by a species to allow for the production of a generational
+    spectrogram.
+    """
 
     def __init__(self, messages: Queue):
         super(Spectrum, self).__init__(messages)
@@ -86,6 +91,11 @@ class Spectrum(EncodedStatsBase):
 
 
 class MessageSpectrum(EncodedStatsBase):
+    """Spectra for each type of message sent by every species.
+
+    For each generation, aggregates messages sent by a species divided by the original message
+    to allow for the production of a generational spectrogram for each message ([0,0,1]...[1,1,1]).
+    """
 
     def __init__(self, messages: Queue):
         super(MessageSpectrum, self).__init__(messages)
@@ -129,11 +139,11 @@ class Loudness(EncodedStatsBase):
         self.std = {}
 
     def handle_message(self, message):
-        '''Add message to list for generation
+        """Add message to list for generation
 
         :param Message message: The message to process
         :return: None
-        '''
+        """
         super(Loudness, self).handle_message(message)
 
         species = message.species_id
@@ -173,14 +183,14 @@ class Cohesion(EncodedStatsBase):
         self.std = {}
 
     def handle_message(self, message: Message):
-        '''Handles individual messages for the Cohesion Statistics module.
+        """Handles individual messages for the Cohesion Statistics module.
 
         Adds the incoming message to a dict consisting of ``{ original message: [encoded message, ] }``.
         This structure is reset every generation.
 
         :param messaging.Message message: The message to process.
         :return: None
-        '''
+        """
         super(Cohesion, self).handle_message(message)
 
         species = message.species_id
@@ -194,7 +204,7 @@ class Cohesion(EncodedStatsBase):
         self.cohesion[species][original].append(encoded)
 
     def handle_generation(self, message):
-        '''Handles the end of a generation for cohesion stats.
+        """Handles the end of a generation for cohesion stats.
 
         Records the avg and std of the distances between encodings of the same message within a species and generation.
         Finds the distance matrix for all encoded messages of the same species/generation/original.
@@ -203,7 +213,7 @@ class Cohesion(EncodedStatsBase):
 
         :param message:
         :return:
-        '''
+        """
         super(Cohesion, self).handle_generation(message)
 
         species = message.species_id
@@ -244,7 +254,7 @@ class MessageArchive:
     def numeric_labels(self):
         if type(self.name) == int:
             # These are triplet values
-            return np.sum(np.array(self.labels) << np.arange(2,-1,-1), axis=1)
+            return np.sum(np.array(self.labels) << np.arange(2, -1, -1), axis=1)
 
         else:
             return [int(l) for l in self.labels]
@@ -252,7 +262,7 @@ class MessageArchive:
 
 class Cluster(EncodedStatsBase):
     overall = 'ALL'
-    archive_interval = 50 #50
+    archive_interval = 50  # 50
 
     def __init__(self, messages: Queue):
         super(Cluster, self).__init__(messages)
@@ -272,14 +282,14 @@ class Cluster(EncodedStatsBase):
         return min([len(v) for v in self.ch.values()])
 
     def handle_message(self, message: Message):
-        '''Handles individual messages for the Cohesion Statistics module.
+        """Handles individual messages for the Cohesion Statistics module.
 
         Adds the incoming message to a dict consisting of ``{ original message: [encoded message, ] }``.
         This structure is reset every generation.
 
         :param messaging.Message message: The message to process.
         :return: None
-        '''
+        """
         super(Cluster, self).handle_message(message)
 
         species = message.species_id
@@ -306,9 +316,9 @@ class Cluster(EncodedStatsBase):
             self.ch[species] = []
         if species not in self.silhouette:
             self.silhouette[species] = []
-            self.silhouette['{}.{}'.format(species,0)] = []
-            self.silhouette['{}.{}'.format(species,1)] = []
-            self.silhouette['{}.{}'.format(species,2)] = []
+            self.silhouette['{}.{}'.format(species, 0)] = []
+            self.silhouette['{}.{}'.format(species, 1)] = []
+            self.silhouette['{}.{}'.format(species, 2)] = []
         if species not in self.archive:
             self.archive[species] = []
         if species not in self.best:
@@ -320,16 +330,18 @@ class Cluster(EncodedStatsBase):
 
         # Calculate scores for each bit
         for b in range(3):
-            s = metrics.silhouette_score(messages, originals[:, 2-b])
-            self.silhouette['{}.{}'.format(species,b)].append(s)
+            s = metrics.silhouette_score(messages, originals[:, 2 - b])
+            self.silhouette['{}.{}'.format(species, b)].append(s)
 
         # log best score
         is_best = False
         best_multiplier = 1.15
-        print(species, self.silhouette[species][-1]+1, self.best[species] * best_multiplier, (self.silhouette[species][-1]+1) > self.best[species] * best_multiplier)
-        if (self.silhouette[species][-1]+1) > self.best[species] * best_multiplier: # +1 to raise range to [0,2] from [-1,1]
+        print(species, self.silhouette[species][-1] + 1, self.best[species] * best_multiplier,
+              (self.silhouette[species][-1] + 1) > self.best[species] * best_multiplier)
+        if (self.silhouette[species][-1] + 1) > self.best[
+                species] * best_multiplier:  # +1 to raise range to [0,2] from [-1,1]
             is_best = True
-            self.best[species] = self.silhouette[species][-1]+1
+            self.best[species] = self.silhouette[species][-1] + 1
 
         if self.overall not in self.encoded:
             self.encoded[self.overall] = []
@@ -341,7 +353,8 @@ class Cluster(EncodedStatsBase):
         self.originals[self.overall].extend([species for o in self.originals[species]])
 
         if self.generation == 1 or self.generation % self.archive_interval == 0 or is_best:
-            self.archive[species].append(MessageArchive(self.generation, species, self.encoded[species], self.originals[species]))
+            self.archive[species].append(
+                MessageArchive(self.generation, species, self.encoded[species], self.originals[species]))
 
         # Delete messages from this generation
         self.encoded[species] = []
@@ -370,17 +383,21 @@ class Cluster(EncodedStatsBase):
 
         # log best score
         is_best = False
-        print(self.overall, self.silhouette[self.overall][-1]+1, self.best[self.overall] * 1.2, (self.silhouette[self.overall][-1]+1) > self.best[self.overall] * 1.2)
-        if (self.silhouette[self.overall][-1]+1) > self.best[self.overall] * 1.2: # +1 to raise range to [0,2] from [-1,1]
+        print(self.overall, self.silhouette[self.overall][-1] + 1, self.best[self.overall] * 1.2,
+              (self.silhouette[self.overall][-1] + 1) > self.best[self.overall] * 1.2)
+        if (self.silhouette[self.overall][-1] + 1) > self.best[
+                self.overall] * 1.2:  # +1 to raise range to [0,2] from [-1,1]
             is_best = True
-            self.best[self.overall] = self.silhouette[self.overall][-1]+1
+            self.best[self.overall] = self.silhouette[self.overall][-1] + 1
 
         if self.generation % self.archive_interval == 0 or is_best:
-            self.archive[self.overall].append(MessageArchive(self.generation, self.overall, self.encoded[self.overall], self.originals[self.overall]))
+            self.archive[self.overall].append(
+                MessageArchive(self.generation, self.overall, self.encoded[self.overall], self.originals[self.overall]))
 
         # Delete messages from this generation
         self.encoded[self.overall] = []
         self.originals[self.overall] = []
+
 
 class Messages(EncodedStatsBase):
 

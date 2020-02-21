@@ -12,11 +12,11 @@ import joblib
 import numpy as np
 
 import neat
-from visualize.plot import plot_cohesion, plot_message_spectrum, plot_networks, plot_scores, plot_stats
-from visualize.print import print_best
 from parallel import MultiQueue
 from species import Species
-from stats import Spectrum, Cohesion, Loudness, MessageSpectrum, Cluster, Messages
+from stats import Spectrum, Cohesion, Loudness, MessageSpectrum, Messages
+from visualize.plot import plot_message_spectrum, plot_scores, plot_stats
+from visualize.print import print_best
 
 np.set_printoptions(precision=3)
 
@@ -33,6 +33,7 @@ N_MESSAGES = 10  # Number of messages to test on each individual in each evoluti
 
 N = 300
 N_RUNS = 5
+
 
 def run(conf_encoders, conf_decoders, generations, view):
     # Load configuration
@@ -53,7 +54,7 @@ def run(conf_encoders, conf_decoders, generations, view):
     loudness_stats = Loudness(messages.add())
     # cluster_stats = Cluster(messages.add())
     messages_archive = Messages(messages.add())
-    stats_mods = [spectrum_stats, message_spectrum_stats, cohesion_stats, loudness_stats, #cluster_stats,
+    stats_mods = [spectrum_stats, message_spectrum_stats, cohesion_stats, loudness_stats,  # cluster_stats,
                   messages_archive]
 
     threads = [Thread(target=s.run) for s in stats_mods]
@@ -108,8 +109,9 @@ def run(conf_encoders, conf_decoders, generations, view):
 
         plot_stats(d, dirname, i, s)
 
-        #TODO: Something is wrong with this module.
-        message_spectra = plot_message_spectrum(d, dirname, i, message_spectrum_stats, s, spectrum_stats, vmin, view=view)
+        # TODO: Something is wrong with this module.
+        message_spectra = plot_message_spectrum(d, dirname, i, message_spectrum_stats, s, spectrum_stats, vmin,
+                                                view=view)
 
         pickle_data['message_spectra'][s.species_id] = message_spectra
 
@@ -139,9 +141,11 @@ def run(conf_encoders, conf_decoders, generations, view):
 
     joblib.dump(pickle_data, pickle_file)
 
+
 def main(args):
     for _ in range(args.runs):
         run(args.encoder_conf, args.decoder_conf, args.generations, args.show)
+
 
 if __name__ == '__main__':
     import argparse
@@ -165,8 +169,6 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--show', action='store_true', default=False,
                         help='Show visualizations for the run.')
 
-
     args = parser.parse_args()
     print(args)
     main(args)
-
