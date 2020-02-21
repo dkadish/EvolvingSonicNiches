@@ -362,8 +362,11 @@ class Cluster(EncodedStatsBase):
         if self.overall not in self.best:
             self.best[self.overall] = 0
 
-        self.ch[self.overall].append(metrics.calinski_harabaz_score(messages, originals))
-        self.silhouette[self.overall].append(metrics.silhouette_score(messages, originals))
+        try:
+            self.ch[self.overall].append(metrics.calinski_harabaz_score(messages, originals))
+            self.silhouette[self.overall].append(metrics.silhouette_score(messages, originals))
+        except ValueError as e:
+            print('ValueError. Likely only one species available. Ignoring clustering scores.')
 
         # log best score
         is_best = False
