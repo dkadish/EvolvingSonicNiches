@@ -288,9 +288,9 @@ if __name__ == '__main__':
     parser.add_argument('-r', '--runs', metavar='R', type=int, action='store',
                         default=N_RUNS,
                         help='number of runs')
-    parser.add_argument('-V', '--visualize', type=bool, action='store_true', default=False,
+    parser.add_argument('-V', '--visualize', action='store_true', default=False,
                         help='Generate visualizations for the run.')
-    parser.add_argument('-s', '--show', type=bool, action='store_true', default=False,
+    parser.add_argument('-s', '--show', action='store_true', default=False,
                         help='Show visualizations for the run.')
 
 
