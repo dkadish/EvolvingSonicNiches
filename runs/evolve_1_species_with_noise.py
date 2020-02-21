@@ -35,7 +35,7 @@ N = 300
 N_RUNS = 5
 
 
-def run(conf_encoders, conf_decoders, generations, view):
+def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_level):
     # Load configuration
     config_enc = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
                              neat.DefaultSpeciesSet, neat.DefaultStagnation,
@@ -49,7 +49,7 @@ def run(conf_encoders, conf_decoders, generations, view):
 
     # Set noise parameters
     for s in species:
-        s.decoder.evaluator.set_noise_parameters(channel=0, level=1)
+        s.decoder.evaluator.set_noise_parameters(channel=noise_channel, level=noise_level)
 
     # Start statistics modules
     spectrum_stats = Spectrum(messages.add())
@@ -69,12 +69,9 @@ def run(conf_encoders, conf_decoders, generations, view):
     n = generations
     k = 0
     while n < 0 or k < n:
-
         k += 1
-
         for s in species:
             s.start()
-
         for s in species:
             s.join()
 
@@ -148,7 +145,7 @@ def run(conf_encoders, conf_decoders, generations, view):
 
 def main(args):
     for _ in range(args.runs):
-        run(args.encoder_conf, args.decoder_conf, args.generations, args.show)
+        run(args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel, args.noise_level)
 
 
 if __name__ == '__main__':
@@ -172,6 +169,10 @@ if __name__ == '__main__':
                         help='Generate visualizations for the run.')
     parser.add_argument('-s', '--show', action='store_true', default=False,
                         help='Show visualizations for the run.')
+    parser.add_argument('--noise-channel', type=int, default=0,
+                        help='Which channel is the noise on?')
+    parser.add_argument('--noise-level', type=float, default=0.0,
+                        help='How much noise is there?')
 
     args = parser.parse_args()
     print(args)
