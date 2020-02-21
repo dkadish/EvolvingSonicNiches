@@ -47,6 +47,10 @@ def run(conf_encoders, conf_decoders, generations, view):
     messages = MultiQueue()
     species = [Species(config_enc, config_dec, messages, pairwise=False) for _ in range(1)]
 
+    # Set noise parameters
+    for s in species:
+        s.decoder.evaluator.set_noise_parameters(channel=0, level=1)
+
     # Start statistics modules
     spectrum_stats = Spectrum(messages.add())
     message_spectrum_stats = MessageSpectrum(messages.add())

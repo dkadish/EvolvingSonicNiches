@@ -79,15 +79,11 @@ class EncoderEvaluator(BaseEvaluator):
                  decoding_scores, species_id)
 
         self._randomized = False
+        self.noise_level = 0
+        self.noise_channel = 0
 
     def set_randomized_messages(self):
         self._randomized = True
-
-    def set_noise_parameters(self, channel=None):
-        pass
-
-    def add_noise(self, message):
-        return message
 
     @property
     def randomized_messages(self):
@@ -105,12 +101,13 @@ class EncoderEvaluator(BaseEvaluator):
             # print('Using standardized message set.')
             messages = [MESSAGE_SET for k in range(len(genomes))]
 
+        #TODO: Calculate penalty fot sound intensity here.
         # Create the NNs and encode the messages
         for i, (genome_id, genome) in enumerate(genomes):
             net = neat.nn.FeedForwardNetwork.create(genome, config)
             for original_message in messages[i]:
                 encoded_message = net.activate(original_message)
-                encoded_message = self.add_noise(encoded_message)
+                # encoded_message = self.add_noise(encoded_message)
                 self.messages.put(Message.Encoded(self.species_id, genome_id, original_message, encoded_message))
 
         # Send Finished Message
@@ -131,6 +128,12 @@ class EncoderEvaluator(BaseEvaluator):
 
 class DecoderEvaluator(BaseEvaluator):
 
+    def __init__(self, messages: Queue, scores: Queue, genomes: Queue, decoding_scores: Queue, species_id=0):
+        super().__init__(messages, scores, genomes, decoding_scores, species_id)
+
+        self.noise_level = 0
+        self.noise_channel = 0
+
     def evaluator(self, genomes, config):
         super(DecoderEvaluator, self).evaluator(genomes, config)
 
@@ -148,6 +151,7 @@ class DecoderEvaluator(BaseEvaluator):
             enc_genome_id = message.message['genome_id']
             original_message = message.message['original']
             encoded_message = message.message['encoded']
+            encoded_message = self.add_noise(encoded_message)
 
             # Update available species IDs, test for completeness
             if enc_species_id not in species_ids:
@@ -204,6 +208,15 @@ class DecoderEvaluator(BaseEvaluator):
         self.genomes.put(dict(genomes))
 
         self.decoding_scores.put({'species': species_scores, 'bit': bit_scores, 'total': total_scores})
+
+    def set_noise_parameters(self, channel=0, level=0):
+        self.noise_level = level
+        self.noise_channel = channel
+
+    def add_noise(self, message):
+        #TODO: Different kinds of noise
+        message[self.noise_channel] += self.noise_level
+        return message
 
     @staticmethod
     def sender_fitness(original, decode, sender_species, receiver_species, null=False):
