@@ -12,6 +12,7 @@ import joblib
 import numpy as np
 
 import neat
+from genome import DefaultGenome
 from parallel import MultiQueue
 from species import Species
 from stats import Spectrum, Cohesion, Loudness, MessageSpectrum, Messages
@@ -37,10 +38,10 @@ N_RUNS = 5
 
 def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_level):
     # Load configuration
-    config_enc = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
+    config_enc = neat.Config(DefaultGenome, neat.DefaultReproduction,
                              neat.DefaultSpeciesSet, neat.DefaultStagnation,
                              conf_encoders)
-    config_dec = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
+    config_dec = neat.Config(DefaultGenome, neat.DefaultReproduction,
                              neat.DefaultSpeciesSet, neat.DefaultStagnation,
                              conf_decoders)
 

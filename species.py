@@ -5,14 +5,14 @@ from threading import Thread
 import neat
 from evaluators import EncoderEvaluator, DecoderEvaluator, PairwiseDecoderEvaluator
 from parallel import MultiQueue
-
+from population import Population
 
 
 class CommunicatorSet:
 
     def __init__(self, config):
         self.config = config
-        self.population = neat.Population(config)
+        self.population = Population(config)
         self.stats = neat.StatisticsReporter()
 
         # Set up Queues
