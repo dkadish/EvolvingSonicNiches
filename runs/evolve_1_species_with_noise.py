@@ -3,7 +3,13 @@
 
 from __future__ import print_function
 
+import sys
 import os
+en_path =  os.path.abspath(os.path.join(__file__,'..','..'))
+print(en_path)
+sys.path.append(en_path)
+
+
 from datetime import datetime
 from string import ascii_uppercase
 from threading import Thread
