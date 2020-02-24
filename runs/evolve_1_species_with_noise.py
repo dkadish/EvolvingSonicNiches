@@ -5,6 +5,7 @@ from __future__ import print_function
 
 import os
 from datetime import datetime
+from multiprocessing.pool import Pool
 from string import ascii_uppercase
 from threading import Thread
 
@@ -148,8 +149,10 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
 
 
 def main(args):
-    for _ in range(args.runs):
-        run(args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel, args.noise_level)
+    n = os.cpu_count() - 2
+    run_args = (args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel, args.noise_level)
+    with Pool(n) as p:
+        p.map(run, [run_args for _ in range(args.runs)])
 
 
 if __name__ == '__main__':
