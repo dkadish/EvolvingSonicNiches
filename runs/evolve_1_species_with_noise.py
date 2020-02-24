@@ -99,6 +99,9 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
         },
         'message_spectra': {},
         'scores': {},
+        'generations': generations,
+        'noise_channel': noise_channel,
+        'noise_level': noise_level
     }
 
     d = datetime.now()
