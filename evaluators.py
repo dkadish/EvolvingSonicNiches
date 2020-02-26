@@ -9,6 +9,7 @@ from scipy.spatial.distance import cdist
 
 import neat
 from messaging import Message, MessageType
+from noise import Noise
 
 N_MESSAGES = 10
 
@@ -74,13 +75,11 @@ class BaseEvaluator:
 class EncoderEvaluator(BaseEvaluator):
 
     def __init__(self, messages: Queue, scores: Queue, genomes: Queue,
-                 decoding_scores: Queue, species_id=0):
+                 decoding_scores: Queue, species_id:int = 0):
         super(EncoderEvaluator, self).__init__(messages, scores, genomes,
                  decoding_scores, species_id)
 
         self._randomized = False
-        self.noise_level = 0
-        self.noise_channel = 0
 
     def set_randomized_messages(self):
         self._randomized = True
@@ -128,11 +127,11 @@ class EncoderEvaluator(BaseEvaluator):
 
 class DecoderEvaluator(BaseEvaluator):
 
-    def __init__(self, messages: Queue, scores: Queue, genomes: Queue, decoding_scores: Queue, species_id=0):
+    def __init__(self, messages: Queue, scores: Queue, genomes: Queue, decoding_scores: Queue, species_id: int = 0,
+                 noise: Noise = None):
         super().__init__(messages, scores, genomes, decoding_scores, species_id)
 
-        self.noise_level = 0
-        self.noise_channel = 0
+        self.noise = noise
 
     def evaluator(self, genomes, config):
         super(DecoderEvaluator, self).evaluator(genomes, config)
@@ -209,13 +208,14 @@ class DecoderEvaluator(BaseEvaluator):
 
         self.decoding_scores.put({'species': species_scores, 'bit': bit_scores, 'total': total_scores})
 
-    def set_noise_parameters(self, channel=0, level=0):
-        self.noise_level = level
-        self.noise_channel = channel
+        # Advance the noise one generation
+        self.noise.generation()
 
     def add_noise(self, message):
-        #TODO: Different kinds of noise
-        message[self.noise_channel] += self.noise_level
+        if self.noise is None:
+            return message
+
+        message += next(self.noise)
         return message
 
     @staticmethod
