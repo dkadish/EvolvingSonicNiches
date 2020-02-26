@@ -12,6 +12,7 @@ sys.path.append(en_path)
 
 from datetime import datetime
 from multiprocessing.pool import Pool
+from multiprocessing import Value
 from string import ascii_uppercase
 from threading import Thread
 
@@ -43,7 +44,20 @@ N = 300
 N_RUNS = 5
 
 
-def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_level):
+def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_level, directory='', run_id=None):
+    if run_id is None:
+        print('No run_id')
+        dirname = '{0:%y}{1}{0:%d_%H%M%S}'.format(datetime.now(), ascii_uppercase[int(datetime.now().month) - 1])
+    else:
+        print('Running run number {}'.format(run_id + 1))
+        run_id += 1
+        dirname = '{0:%y}{1}{0:%d_%H%M%S}-{2}'.format(datetime.now(), ascii_uppercase[int(datetime.now().month) - 1], run_id)
+    if directory != '':
+        os.makedirs('data/{}'.format(directory), exist_ok=True)
+        dirname = '{}/{}'.format(directory, dirname)
+
+    os.makedirs('data/{}'.format(dirname))
+    
     # Load configuration
     config_enc = neat.Config(DefaultGenome, neat.DefaultReproduction,
                              neat.DefaultSpeciesSet, neat.DefaultStagnation,
@@ -53,7 +67,7 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
                              conf_decoders)
 
     messages = MultiQueue()
-    species = [Species(config_enc, config_dec, messages, pairwise=False) for _ in range(1)]
+    species = [Species(config_enc, config_dec, messages, pairwise=False, checkpoint_dir='data/{}'.format(directory)) for _ in range(1)]
 
     # Set noise parameters
     for s in species:
@@ -93,9 +107,7 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
     ####################################################################################################################
 
     vmin = 0
-
-    dirname = '{0:%y}{1}{0:%d_%H%M}'.format(datetime.now(), ascii_uppercase[int(datetime.now().month) - 1])
-    os.mkdir('data/{}'.format(dirname))
+    
 
     pickle_file = 'data/{}/data.joblib'.format(dirname)
     pickle_data = {
@@ -156,9 +168,15 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
 
 def main(args):
     n = os.cpu_count() - 2
-    run_args = (args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel, args.noise_level)
-    with Pool(n) as p:
-        p.map(run, [run_args for _ in range(args.runs)])
+    run_args = [args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel, args.noise_level, args.dir]
+    if args.multiprocessing:
+        with Pool(n) as p:
+            res = p.starmap(run, [run_args+[i] for i in range(args.runs)])
+            p.close()
+            p.join()
+    else:
+        for _ in range(args.runs):
+            run(args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel, args.noise_level, args.dir)
 
 
 if __name__ == '__main__':
@@ -186,6 +204,8 @@ if __name__ == '__main__':
                         help='Which channel is the noise on?')
     parser.add_argument('--noise-level', type=float, default=0.0,
                         help='How much noise is there?')
+    parser.add_argument('-d', '--dir', type=str, default='', help='directory for the run')
+    parser.add_argument('-m', '--multiprocessing', action='store_true', default=False, help='use multiprocessing for the run')
 
     args = parser.parse_args()
     print(args)

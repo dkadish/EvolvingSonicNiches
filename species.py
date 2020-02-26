@@ -10,7 +10,7 @@ from population import Population
 
 class CommunicatorSet:
 
-    def __init__(self, config):
+    def __init__(self, config, checkpoint_dir=None):
         self.config = config
         self.population = Population(config)
         self.stats = neat.StatisticsReporter()
@@ -27,14 +27,20 @@ class CommunicatorSet:
 
         self.thread = None
 
+        self.checkpoint_dir = checkpoint_dir
+
     def createDecoderEvaluator(self, #encoded,
                                messages, scores,
                                decoding_scores, species_id):
         self.evaluator = DecoderEvaluator(#encoded,
                                           messages, scores, self.genomes,
                                           decoding_scores, species_id)
-
-        self.population.add_reporter(neat.Checkpointer(5, filename_prefix='{:%y-%m-%d-%H-%M-%S}_neat-dec-checkpoint-'.format(datetime.now())))
+        
+        if self.checkpoint_dir is not None:
+            prefix = '{}/{:%y-%m-%d-%H-%M-%S}_neat-dec-checkpoint-'.format(self.checkpoint_dir,datetime.now())
+        else:
+            prefix='{:%y-%m-%d-%H-%M-%S}_neat-dec-checkpoint-'.format(datetime.now())
+        self.population.add_reporter(neat.Checkpointer(5, filename_prefix=prefix))
 
     def createEncoderEvaluator(self, #encoded,
                                messages, scores,
@@ -42,7 +48,12 @@ class CommunicatorSet:
         self.evaluator = EncoderEvaluator(#encoded,
                                           messages, scores, self.genomes,
                                           decoding_scores, species_id)
-        self.population.add_reporter(neat.Checkpointer(5, filename_prefix='{:%y-%m-%d-%H-%M-%S}_neat-enc-checkpoint-'.format(datetime.now())))
+        if self.checkpoint_dir is not None:
+            prefix = '{}/{:%y-%m-%d-%H-%M-%S}_neat-enc-checkpoint-'.format(self.checkpoint_dir,datetime.now())
+        else:
+            prefix='{:%y-%m-%d-%H-%M-%S}_neat-enc-checkpoint-'.format(datetime.now())
+
+        self.population.add_reporter(neat.Checkpointer(5, filename_prefix=prefix))
 
     def createPairwireDecoderEvaluator(self, #encoded,
                                        messages, scores,
@@ -57,7 +68,7 @@ class Species:
     counter = 0
 
     def __init__(self, encoder_config, decoder_config, #encoded: MultiQueue,
-                 messages: MultiQueue, pairwise=False):
+                 messages: MultiQueue, pairwise=False, checkpoint_dir=None):
         # self.encoded = encoded
         self.messages = messages
         self.scores = Queue()
@@ -66,18 +77,18 @@ class Species:
         self.species_id = Species.counter
         Species.counter += 1
 
-        self.encoder = CommunicatorSet(encoder_config)
+        self.encoder = CommunicatorSet(encoder_config, checkpoint_dir)
         self.encoder.createEncoderEvaluator(#self.encoded,
                                             self.messages, self.scores,
                                             self.decoding_scores, self.species_id)
 
         if not pairwise:
-            self.decoder = CommunicatorSet(decoder_config)
+            self.decoder = CommunicatorSet(decoder_config, checkpoint_dir)
             self.decoder.createDecoderEvaluator(#self.encoded.add(),
                                                 self.messages.add(), self.scores,
                                                 self.decoding_scores, self.species_id)
         else:
-            self.decoder = CommunicatorSet(decoder_config)
+            self.decoder = CommunicatorSet(decoder_config, checkpoint_dir)
             self.decoder.createPairwireDecoderEvaluator(#self.encoded.add(),
                                                         self.messages.add(), self.scores,
                                                         self.decoding_scores, self.species_id)
