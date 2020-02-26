@@ -5,6 +5,9 @@ from __future__ import print_function
 
 import sys
 import os
+
+from noise import Noise, GenerationStepNoise
+
 en_path =  os.path.abspath(os.path.join(__file__,'..','..'))
 print(en_path)
 sys.path.append(en_path)
@@ -44,7 +47,7 @@ N = 300
 N_RUNS = 5
 
 
-def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_level, directory='', run_id=None):
+def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_level, noise_generation, directory='', run_id=None):
     if run_id is None:
         print('No run_id')
         dirname = '{0:%y}{1}{0:%d_%H%M%S}'.format(datetime.now(), ascii_uppercase[int(datetime.now().month) - 1])
@@ -70,8 +73,12 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
     species = [Species(config_enc, config_dec, messages, pairwise=False, checkpoint_dir='data/{}'.format(directory)) for _ in range(1)]
 
     # Set noise parameters
+    if noise_generation is not None:
+        n = GenerationStepNoise(noise_level, noise_channel, noise_generation)
+    else:
+        n = Noise(noise_level, noise_channel)
     for s in species:
-        s.decoder.evaluator.set_noise_parameters(channel=noise_channel, level=noise_level)
+        s.decoder.evaluator.noise = n
 
     # Start statistics modules
     spectrum_stats = Spectrum(messages.add())
@@ -143,16 +150,6 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
 
         pickle_data['scores'][i] = plot_scores(d, dirname, i, s)
 
-    # ch = cluster_stats.ch
-    # silhouette = cluster_stats.silhouette
-    # archive = cluster_stats.archive
-    #
-    # pickle_data['ch'] = ch
-    # pickle_data['silhouette'] = silhouette
-    # pickle_data['archive'] = archive
-
-    # visualize.plot_clustering(ch, silhouette, archive, view=VIEW,
-    #                           filename='data/%s/%s-clustering_stats' % (dirname, d.strftime('%y-%m-%d_%H-%M-%S')))
 
     print('Adding messages to pickle...')
 
@@ -168,15 +165,16 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
 
 def main(args):
     n = os.cpu_count() - 2
-    run_args = [args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel, args.noise_level, args.dir]
+    run_args = [args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel, args.noise_level, args.noise_generation, args.dir]
     if args.multiprocessing:
         with Pool(n) as p:
+            print(run_args)
             res = p.starmap(run, [run_args+[i] for i in range(args.runs)])
             p.close()
             p.join()
     else:
         for _ in range(args.runs):
-            run(args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel, args.noise_level, args.dir)
+            run(args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel, args.noise_level, args.noise_generation, args.dir)
 
 
 if __name__ == '__main__':
@@ -200,10 +198,12 @@ if __name__ == '__main__':
                         help='Generate visualizations for the run.')
     parser.add_argument('-s', '--show', action='store_true', default=False,
                         help='Show visualizations for the run.')
-    parser.add_argument('--noise-channel', type=int, default=0,
+    parser.add_argument('--noise-channel', type=int, default=0, nargs='*',
                         help='Which channel is the noise on?')
-    parser.add_argument('--noise-level', type=float, default=0.0,
+    parser.add_argument('--noise-level', type=float, default=0.0, nargs='*',
                         help='How much noise is there?')
+    parser.add_argument('--noise-generation', type=int, default=None,
+                        help='In which generation does the noise start?')
     parser.add_argument('-d', '--dir', type=str, default='', help='directory for the run')
     parser.add_argument('-m', '--multiprocessing', action='store_true', default=False, help='use multiprocessing for the run')
 
