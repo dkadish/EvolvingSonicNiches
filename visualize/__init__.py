@@ -124,7 +124,8 @@ def plot_species(statistics, view=False, filename='speciation.svg'):
     plt.close()
 
 
-def plot_spectrum(spectra, cmap='rainbow', view=False, vmin=None, vmax=None, filename='spectrum.svg'):
+def plot_spectrum(spectra, cmap='rainbow', view=False, vmin=None, vmax=None,
+                  filename='spectrum.svg', title="Use of the communication spectrum by generation"):
     """ Plots the population's average and best fitness. """
     if plt is None:
         warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
@@ -135,7 +136,7 @@ def plot_spectrum(spectra, cmap='rainbow', view=False, vmin=None, vmax=None, fil
     p = ax.pcolormesh(spectra[:, :-1], cmap=cmap, vmin=vmin, vmax=vmax)
     fig.colorbar(p, ax=ax)
 
-    plt.title("Use of the communication spectrum by generation")
+    plt.title(title)
     plt.xlabel("Generations")
     plt.ylabel("Spectrum")
     plt.grid()
