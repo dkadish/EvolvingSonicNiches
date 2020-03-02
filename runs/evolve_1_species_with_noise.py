@@ -79,6 +79,7 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
         n = Noise(noise_level, noise_channel)
     for s in species:
         s.decoder.evaluator.noise = n
+        # s.decoder.evaluator.overwrite_message_with_noise()
 
     # Start statistics modules
     spectrum_stats = Spectrum(messages.add())
@@ -123,6 +124,8 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
             'receiver': config_dec,
             'n_generations': n,
         },
+        'encoder_stats': {},
+        'decoder_stats': {},
         'message_spectra': {},
         'scores': {},
         'generations': generations,
@@ -138,7 +141,7 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
 
         # plot_networks(config_dec, config_enc, d, dirname, i, node_names_dec, node_names_enc, s, view=view)
 
-        plot_stats(d, dirname, i, s)
+        plot_stats(d, dirname, i, s, view=True)
 
         # TODO: Something is wrong with this module.
         message_spectra = plot_message_spectrum(d, dirname, i, message_spectrum_stats, s, spectrum_stats, vmin,
@@ -149,6 +152,9 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
         # plot_cohesion(cohesion_stats, d, dirname, i, loudness_stats, s, view=view)
 
         pickle_data['scores'][i] = plot_scores(d, dirname, i, s)
+
+        pickle_data['encoder_stats'][s.species_id] = s.encoder.stats
+        pickle_data['decoder_stats'][s.species_id] = s.decoder.stats
 
 
     print('Adding messages to pickle...')

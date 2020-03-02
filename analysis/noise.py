@@ -40,12 +40,13 @@ def plot_channel_usage(args):
         usage_map = calculage_usage(ind)
         usage_maps.append(usage_map)
 
-        if args.individual and i < args.number:
-            plot_spectrum(usage_map, view=True, title='Usage map (#{})'.format(i))
+        number = args.number is None and len(messages) or args.number
+        if args.individual and i < number:
+            plot_spectrum(usage_map, view=True, title='Usage map (#{})'.format(i), filename='channel_usage_{}.svg'.format(i))
 
     usage = np.average(usage_maps, axis=0)
 
-    plot_spectrum(usage, view=True, title='Usage map')
+    plot_spectrum(usage, view=True, title='Usage map', filename='channel_usage.svg')
 
 def plot_fitness_from_multiple_runs(args):
     def load(d):
@@ -60,7 +61,13 @@ def plot_fitness_from_multiple_runs(args):
         n = args.number is None and len(scores) or args.number
         for i, data in enumerate(scores):
             if i >= n: break
-            plt.plot(range(data.size), savgol_filter(data, 11, 3), label=i, alpha=0.5)
+            plt.plot(range(data.size), data, label=i)
+
+            if args.save:
+                plt.savefig('fitness-{}.svg'.format(i))
+
+            plt.show()
+            plt.close()
 
             # plot_spectrum(data, view=True, title='Sender spectrum #{}'.format(i))
 
@@ -72,14 +79,15 @@ def plot_fitness_from_multiple_runs(args):
     avg_scores = np.average(scores, axis=0)
     plt.plot(range(avg_scores.size), savgol_filter(avg_scores, 11, 3), label="tot")
 
-    # ax2 = plt.gca().twinx()
-    # ax2.plot(range(avg_scores.size), savgol_filter(avg_diffs, 11, 3), label="dif")
+    ax2 = plt.gca().twinx()
+    ax2.plot(range(avg_scores.size), savgol_filter(avg_diffs, 21, 3), label="dif", alpha=0.2)
     plt.legend()
-
-    plt.show()
 
     if args.save:
         plt.savefig('fitness.svg')
+
+    plt.show()
+    plt.close()
 
     # avg_spectrum = np.average(spectra, axis=0)
     # print(avg_spectrum.shape)
@@ -92,6 +100,9 @@ def plot_spectrogram_from_multiple_runs(args):
 
     #TODO: double chekc that teh average works
     #TODO: Check the random seed
+    #TODO: Include maximums in fitness plot
+    #TODO: Noise channel set to 1, they should move away very quickly. We want to know whether they can communicate at all.
+            # Possibly add noise to all channels
 
     if args.individual:
         n = args.number is None and len(spectra) or args.number
