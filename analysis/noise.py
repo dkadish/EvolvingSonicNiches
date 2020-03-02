@@ -4,13 +4,14 @@ import sys
 import numpy as np
 from scipy.signal import savgol_filter
 
-from analysis.data import load_subset_fn
-from visualize import plot_spectrum
 import matplotlib.pyplot as plt
 
 en_path =  os.path.abspath(os.path.join(__file__,'..','..'))
 print(en_path)
 sys.path.append(en_path)
+
+from analysis.data import load_subset_fn
+from visualize import plot_spectrum
 
 def __load_messages(d):
     species_no = next(iter(d['message_spectra']))
@@ -108,6 +109,7 @@ def plot_spectrogram_from_multiple_runs(args):
         n = args.number is None and len(spectra) or args.number
         for i, data in enumerate(spectra):
             if i >= n: break
+            filename='spectrum.svg'
             if args.save:
                 filename = 'spectrum-{}.svg'.format(i)
             plot_spectrum(data, view=True, title='Sender spectrum #{}'.format(i), filename=filename)

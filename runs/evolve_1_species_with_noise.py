@@ -6,7 +6,6 @@ from __future__ import print_function
 import sys
 import os
 
-from noise import Noise, GenerationStepNoise
 
 en_path =  os.path.abspath(os.path.join(__file__,'..','..'))
 print(en_path)
@@ -29,6 +28,7 @@ from species import Species
 from stats import Spectrum, Cohesion, Loudness, MessageSpectrum, Messages
 from visualize.plot import plot_message_spectrum, plot_scores, plot_stats
 from visualize.print import print_best
+from noise import Noise, GenerationStepNoise
 
 np.set_printoptions(precision=3)
 
