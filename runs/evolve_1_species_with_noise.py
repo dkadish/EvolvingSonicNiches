@@ -69,8 +69,21 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
                              neat.DefaultSpeciesSet, neat.DefaultStagnation,
                              conf_decoders)
 
+    eval_config = {
+        'Simulation': {
+            'n_messages': 7,
+            'noise_overwrites_signal': False,
+        },
+        'Evaluation': {
+            'correct_factor': 0.1,
+            'loudness_penalty': 0.1,
+            'no_species_id_score': True,
+        }
+    }
+
+
     messages = MultiQueue()
-    species = [Species(config_enc, config_dec, messages, pairwise=False, checkpoint_dir='data/{}'.format(directory)) for _ in range(1)]
+    species = [Species(config_enc, config_dec, messages, pairwise=False, checkpoint_dir='data/{}'.format(directory), evaluator_config=eval_config) for _ in range(1)]
 
     # Set noise parameters
     if noise_generation is not None:
@@ -124,6 +137,7 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
             'receiver': config_dec,
             'n_generations': n,
         },
+        'evaluator_config': eval_config,
         'encoder_stats': {},
         'decoder_stats': {},
         'message_spectra': {},

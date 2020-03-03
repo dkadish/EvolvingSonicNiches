@@ -1,54 +1,60 @@
 import logging
 import random
-from itertools import product
+from configparser import ConfigParser
 from math import tanh
 from multiprocessing import Queue
 from random import choice
 
 import numpy as np
-from scipy.spatial.distance import cdist
 
 import neat
 from messaging import Message, MessageType
 from noise import Noise
 
-N_MESSAGES = 10
-
 MESSAGE_SET = [
-          # tuple([0, 0, 0]),
-          tuple([0, 0, 1]),
-          tuple([0, 1, 0]),
-          tuple([0, 1, 1]),
-          tuple([1, 0, 0]),
-          tuple([1, 0, 1]),
-          tuple([1, 1, 0]),
-          tuple([1, 1, 1])
+    tuple([0, 0, 1]),
+    tuple([0, 1, 0]),
+    tuple([0, 1, 1]),
+    tuple([1, 0, 0]),
+    tuple([1, 0, 1]),
+    tuple([1, 1, 0]),
+    tuple([1, 1, 1])
 ]
 
-CORRECT_FACTOR = 0.1
-LOUDNESS_PENALTY = 0.1
-
-NULL = False
-
 logger = logging.getLogger('Evaluators')
+
+default_config = {
+    'Simulation': {
+        'n_messages': 7,
+        'noise_overwrites_signal': False,
+    },
+    'Evaluation': {
+        'correct_factor': 0.1,
+        'loudness_penalty': 0.1,
+        'no_species_id_score': False,
+    }
+}
+
 
 def nonlin_fitness(x):
     f = (tanh(8.0 * (x - 0.5)) + 1.0) / 2.0
     return f
 
-def correct_multiplier(fitness, original, decode):
-    multiplier = 1.0 + CORRECT_FACTOR
+
+def correct_multiplier(fitness, original, decode, correct_factor):
+    multiplier = 1.0 + correct_factor
     for o, d in zip(original, decode):
         if abs(o - d) < 0.5:
             fitness *= multiplier
-            multiplier += CORRECT_FACTOR
+            multiplier += correct_factor
 
     return fitness
+
 
 class BaseEvaluator:
 
     def __init__(self, messages: Queue, scores: Queue, genomes: Queue,
-                 decoding_scores: Queue, species_id=0):
+                 decoding_scores: Queue, species_id=0, config=default_config):
         self.messages = messages
 
         self.scores = scores
@@ -59,6 +65,9 @@ class BaseEvaluator:
         self.decoding_scores = decoding_scores
 
         self.species_id = species_id  # For identifying members of the same species in multispecies processes.
+
+        self.config = ConfigParser()
+        self.config.read_dict(config)
 
     def __del__(self):
         pass
@@ -80,11 +89,14 @@ class BaseEvaluator:
 class EncoderEvaluator(BaseEvaluator):
 
     def __init__(self, messages: Queue, scores: Queue, genomes: Queue,
-                 decoding_scores: Queue, species_id:int = 0):
+                 decoding_scores: Queue, species_id: int = 0, config=default_config):
         super(EncoderEvaluator, self).__init__(messages, scores, genomes,
-                 decoding_scores, species_id)
+                                               decoding_scores, species_id, config)
 
         self._randomized = False
+
+        # Config values
+        self._n_messages = self.config['Simulation'].getint('n_messages')
 
     def set_randomized_messages(self):
         self._randomized = True
@@ -99,13 +111,14 @@ class EncoderEvaluator(BaseEvaluator):
         # Generate a set of messages to use for testing
         if self._randomized:
             # print('Using randomized messages.')
-            messages = [[tuple([int(random.random() > 0.5) for i in range(3)]) for j in range(N_MESSAGES)] for k in
+            messages = [[tuple([int(random.random() > 0.5) for i in range(3)]) for j in range(self._n_messages)] for k
+                        in
                         range(len(genomes))]
         else:
             # print('Using standardized message set.')
             messages = [MESSAGE_SET for k in range(len(genomes))]
 
-        #TODO: Calculate penalty fot sound intensity here.
+        # TODO: Calculate penalty fot sound intensity here.
         # Create the NNs and encode the messages
         for i, (genome_id, genome) in enumerate(genomes):
             net = neat.nn.FeedForwardNetwork.create(genome, config)
@@ -133,11 +146,17 @@ class EncoderEvaluator(BaseEvaluator):
 class DecoderEvaluator(BaseEvaluator):
 
     def __init__(self, messages: Queue, scores: Queue, genomes: Queue, decoding_scores: Queue, species_id: int = 0,
+                 config=default_config,
                  noise: Noise = None):
-        super().__init__(messages, scores, genomes, decoding_scores, species_id)
+        super().__init__(messages, scores, genomes, decoding_scores, species_id, config)
 
         self.noise = noise
-        self._noise_overwrites_signal = False # This should not be used in normal operation. It is for debugging purposes only.
+
+        # This should not be used in normal operation. It is for debugging purposes only.
+        self._noise_overwrites_signal = self.config['Simulation'].getboolean('noise_overwrites_signal')
+        self._no_species_id_score = self.config['Evaluation'].getboolean('no_species_id_score')
+        self._loudness_penalty = self.config['Evaluation'].getfloat('loudness_penalty')
+        self._correct_factor = self.config['Evaluation'].getfloat('correct_factor')
 
     def evaluator(self, genomes, config):
         super(DecoderEvaluator, self).evaluator(genomes, config)
@@ -179,9 +198,14 @@ class DecoderEvaluator(BaseEvaluator):
                 decoded_message = np.clip(decoded_message, 0, 1)
 
                 # Calculate encoder and decoder fitness values.
-                e_fitness = DecoderEvaluator.sender_fitness(original_message, encoded_message, decoded_message, enc_species_id, self.species_id, NULL, LOUDNESS_PENALTY)
-                d_fitness = DecoderEvaluator.receiver_fitness(original_message, encoded_message, decoded_message, enc_species_id, self.species_id, NULL)
-                species_score, bit_score, total_score = DecoderEvaluator.score(original_message, decoded_message, enc_species_id, self.species_id)
+                e_fitness = DecoderEvaluator.sender_fitness(original_message, encoded_message, decoded_message,
+                                                            enc_species_id, self.species_id, self._no_species_id_score,
+                                                            self._loudness_penalty, self._correct_factor)
+                d_fitness = DecoderEvaluator.receiver_fitness(original_message, encoded_message, decoded_message,
+                                                              enc_species_id, self.species_id,
+                                                              self._no_species_id_score)
+                species_score, bit_score, total_score = DecoderEvaluator.score(original_message, decoded_message,
+                                                                               enc_species_id, self.species_id)
 
                 if e_fitness is not None:
                     encoder_fitness[enc_genome_id] += e_fitness
@@ -239,16 +263,22 @@ class DecoderEvaluator(BaseEvaluator):
             logger.warning('Noise is NONE. Will not overwrite messages.')
             return
 
-        logger.warning('Overwriting messages in noisy channels with noise. Should not be used in regular operation. For debugging purposes only.')
+        logger.warning(
+            'Overwriting messages in noisy channels with noise. Should not be used in regular operation. For debugging purposes only.')
         self._noise_overwrites_signal = True
 
     @staticmethod
-    def sender_fitness(original, encode, decode, sender_species, receiver_species, null=False, loudness_penalty=0):
-        '''Score the sender.
+    def sender_fitness(original, encode, decode, sender_species, receiver_species,
+                       no_species_id_score=default_config['Evaluation']['no_species_id_score'],
+                       loudness_penalty=default_config['Evaluation']['loudness_penalty'],
+                       correct_factor=default_config['Evaluation']['correct_factor']):
+        """Score the sender.
 
         The sender only gets points for receivers within the species. Other receivers are ignored.
         Maximum theoretical fitness is 4 * n_messages * n_individuals = 4*7*50 = 1400.
 
+        :param correct_factor:
+        :param no_species_id_score:
         :param original:
         :param decode:
         :param sender_species:
@@ -258,7 +288,7 @@ class DecoderEvaluator(BaseEvaluator):
             the potential signaling of predators and prey, etc. Penalty is the average of the encoded
             channels * loudness_penalty. Default: 0.
         :return:
-        '''
+        """
         decided_same = decode[-1] >= 0.5  # NN thinks its from the same species
         is_same = sender_species == receiver_species  # It is from the same species
         decided_correct = decided_same == is_same  # The decision was correct
@@ -266,20 +296,19 @@ class DecoderEvaluator(BaseEvaluator):
         if not is_same:
             return None
 
-        if null:
-            fitness = 3 * np.product([nonlin_fitness(1 - abs(o - d)) for o, d in zip(original, decode)])
-            fitness = correct_multiplier(fitness, original, decode)
-            return fitness
+        fitness = 0.0
 
-        # How close did the decoder come to determining the correct species
-        fitness = nonlin_fitness(1 - abs(int(is_same) - decode[-1]))
+        if not no_species_id_score:
+            # How close did the decoder come to determining the correct species
+            fitness = nonlin_fitness(1 - abs(int(is_same) - decode[-1]))
 
-        # Loudness penalty. Has no effect if penalty is 0
-        fitness -= np.average(encode) * loudness_penalty
+        if decided_correct or no_species_id_score:  # This is a little strange, but this happens when the species is decided correctly OR you aren't checking species
+            # Loudness penalty. Has no effect if penalty is 0
+            fitness -= np.average(encode) * loudness_penalty
 
-        if decided_correct:
-            fitness += 3*np.product([nonlin_fitness(1-abs(o - d)) for o, d in zip(original, decode)])
-            fitness = correct_multiplier(fitness, original, decode)
+            # Scores for correct bits
+            fitness += 3 * np.product([nonlin_fitness(1 - abs(o - d)) for o, d in zip(original, decode)])
+            fitness = correct_multiplier(fitness, original, decode, correct_factor)
 
         if fitness < 0.0:
             fitness = 0.0
@@ -287,7 +316,9 @@ class DecoderEvaluator(BaseEvaluator):
         return fitness
 
     @staticmethod
-    def receiver_fitness(original, encode, decode, sender_species, receiver_species, null=False):
+    def receiver_fitness(original, encode, decode, sender_species, receiver_species,
+                         no_species_id_score=default_config['Evaluation']['no_species_id_score'],
+                         correct_factor=default_config['Evaluation']['correct_factor']):
         '''Score the receiver.
 
         The receiver is scored similarly to the sender, but it also gets points for correctly identified non-member
@@ -313,24 +344,20 @@ class DecoderEvaluator(BaseEvaluator):
         is_same = sender_species == receiver_species  # It is from the same species
         decided_correct = decided_same == is_same  # The decision was correct
 
-        # What is this???
-        if null:
-            if not is_same:
-                return None
+        fitness = 0.0
 
-            fitness = 3 * np.product([nonlin_fitness(1 - abs(o - d)) for o, d in zip(original, decode)])
-            fitness = correct_multiplier(fitness, original, decode)
-            return fitness
+        if no_species_id_score and not is_same:
+            return None
 
-        # Score for correct confidence that it is the same species
-        fitness = nonlin_fitness(1 - abs(int(is_same) - decode[-1]))
+        if (decided_correct and is_same) or no_species_id_score:
+            # Score for correct confidence that it is the same species
+            fitness += nonlin_fitness(1 - abs(int(is_same) - decode[-1]))
 
-        if decided_correct and is_same:
-            fitness += 3*np.product([nonlin_fitness(1 - abs(o - d)) for o, d in zip(original, decode)])
-            fitness = correct_multiplier(fitness, original, decode)
+            # Score for correct bits.
+            fitness += 3 * np.product([nonlin_fitness(1 - abs(o - d)) for o, d in zip(original, decode)])
+            fitness = correct_multiplier(fitness, original, decode, correct_factor)
 
         return fitness
-
 
     @staticmethod
     def score(original, decode, sender_species, receiver_species):
@@ -355,7 +382,7 @@ class DecoderEvaluator(BaseEvaluator):
         '''
 
         decided_same = decode[-1] >= 0.5  # NN thinks its from the same species
-        is_same = sender_species == receiver_species # It is from the same species
+        is_same = sender_species == receiver_species  # It is from the same species
         decided_correct = decided_same == is_same  # The decision was correct
 
         # Score the species selection
@@ -365,7 +392,7 @@ class DecoderEvaluator(BaseEvaluator):
             bits = 0
             total = 0
         elif is_same:
-            bits = 3 - sum([abs(o-round(d)) for o,d in zip(original, decode)])
+            bits = 3 - sum([abs(o - round(d)) for o, d in zip(original, decode)])
             total = 1.0 if bits == 3 else 0.0
             bits /= 3.0
         else:
@@ -505,6 +532,8 @@ class PairwiseDecoderEvaluator(BaseEvaluator):
 
         self.decoding_scores.put({'species': species_scores, 'bit': bit_scores, 'total': total_scores})
 
+
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()
