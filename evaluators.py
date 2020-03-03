@@ -1,10 +1,9 @@
-from configparser import ConfigParser
 import logging
 import random
+from configparser import ConfigParser
 from math import tanh
 from multiprocessing import Queue
 from random import choice
-from typing import Dict, Union
 
 import numpy as np
 
@@ -203,7 +202,8 @@ class DecoderEvaluator(BaseEvaluator):
                                                             enc_species_id, self.species_id, self._no_species_id_score,
                                                             self._loudness_penalty, self._correct_factor)
                 d_fitness = DecoderEvaluator.receiver_fitness(original_message, encoded_message, decoded_message,
-                                                              enc_species_id, self.species_id, self._no_species_id_score)
+                                                              enc_species_id, self.species_id,
+                                                              self._no_species_id_score)
                 species_score, bit_score, total_score = DecoderEvaluator.score(original_message, decoded_message,
                                                                                enc_species_id, self.species_id)
 
@@ -317,8 +317,8 @@ class DecoderEvaluator(BaseEvaluator):
 
     @staticmethod
     def receiver_fitness(original, encode, decode, sender_species, receiver_species,
-                       no_species_id_score=default_config['Evaluation']['no_species_id_score'],
-                       correct_factor=default_config['Evaluation']['correct_factor']):
+                         no_species_id_score=default_config['Evaluation']['no_species_id_score'],
+                         correct_factor=default_config['Evaluation']['correct_factor']):
         '''Score the receiver.
 
         The receiver is scored similarly to the sender, but it also gets points for correctly identified non-member
