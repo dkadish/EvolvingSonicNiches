@@ -24,9 +24,10 @@ class Message:
         return message
 
     @classmethod
-    def Encoded(cls, species_id, genome_id, original, encoded):
+    def Encoded(cls, species_id, genome_id, original, encoded, received):
         message = Message(species_id, MessageType.MESSAGE)
         message.message = {'genome_id': genome_id,
                            'original': original,
-                           'encoded': encoded}
+                           'encoded': encoded,
+                           'received': received}
         return message

@@ -89,7 +89,8 @@ class BaseEvaluator:
 class EncoderEvaluator(BaseEvaluator):
 
     def __init__(self, messages: Queue, scores: Queue, genomes: Queue,
-                 decoding_scores: Queue, species_id: int = 0, config=default_config):
+                 decoding_scores: Queue, species_id: int = 0, config=default_config,
+                 noise: Noise = None):
         super(EncoderEvaluator, self).__init__(messages, scores, genomes,
                                                decoding_scores, species_id, config)
 
@@ -97,6 +98,10 @@ class EncoderEvaluator(BaseEvaluator):
 
         # Config values
         self._n_messages = self.config['Simulation'].getint('n_messages')
+
+        self.noise = noise
+        # This should not be used in normal operation. It is for debugging purposes only.
+        self._noise_overwrites_signal = self.config['Simulation'].getboolean('noise_overwrites_signal')
 
     def set_randomized_messages(self):
         self._randomized = True
@@ -124,8 +129,8 @@ class EncoderEvaluator(BaseEvaluator):
             net = neat.nn.FeedForwardNetwork.create(genome, config)
             for original_message in messages[i]:
                 encoded_message = net.activate(original_message)
-                # encoded_message = self.add_noise(encoded_message)
-                self.messages.put(Message.Encoded(self.species_id, genome_id, original_message, encoded_message))
+                received_message = self.add_noise(encoded_message)
+                self.messages.put(Message.Encoded(self.species_id, genome_id, original_message, encoded_message, received_message))
 
         # Send Finished Message
         self.messages.put(Message.Generation(self.species_id))
@@ -142,18 +147,38 @@ class EncoderEvaluator(BaseEvaluator):
 
         self.genomes.put(genome_dict)
 
+        # Advance the noise one generation
+        self.noise.generation()
+
+    def add_noise(self, message):
+        if self.noise is None:
+            return message
+
+        if self._noise_overwrites_signal:
+            # Replace the message entirely in the channels that have noise with the noise
+            m = np.array(message)
+            n = next(self.noise)
+            m[n != 0] = n[n != 0]
+            return list(m)
+
+        message += next(self.noise)
+        return message
+
+    def overwrite_message_with_noise(self):
+        if self.noise is None:
+            logger.warning('Noise is NONE. Will not overwrite messages.')
+            return
+
+        logger.warning(
+            'Overwriting messages in noisy channels with noise. Should not be used in regular operation. For debugging purposes only.')
+        self._noise_overwrites_signal = True
 
 class DecoderEvaluator(BaseEvaluator):
 
     def __init__(self, messages: Queue, scores: Queue, genomes: Queue, decoding_scores: Queue, species_id: int = 0,
-                 config=default_config,
-                 noise: Noise = None):
+                 config=default_config):
         super().__init__(messages, scores, genomes, decoding_scores, species_id, config)
 
-        self.noise = noise
-
-        # This should not be used in normal operation. It is for debugging purposes only.
-        self._noise_overwrites_signal = self.config['Simulation'].getboolean('noise_overwrites_signal')
         self._no_species_id_score = self.config['Evaluation'].getboolean('no_species_id_score')
         self._loudness_penalty = self.config['Evaluation'].getfloat('loudness_penalty')
         self._correct_factor = self.config['Evaluation'].getfloat('correct_factor')
@@ -175,7 +200,7 @@ class DecoderEvaluator(BaseEvaluator):
             enc_genome_id = message.message['genome_id']
             original_message = message.message['original']
             encoded_message = message.message['encoded']
-            encoded_message = self.add_noise(encoded_message)
+            received_message = message.message['received']
 
             # Update available species IDs, test for completeness
             if enc_species_id not in species_ids:
@@ -192,7 +217,7 @@ class DecoderEvaluator(BaseEvaluator):
                     total_scores[genome_id] = []
 
                 net = neat.nn.FeedForwardNetwork.create(genome, config)
-                decoded_message = net.activate(encoded_message)
+                decoded_message = net.activate(received_message)
 
                 # Ensure decoded_message is between 0 and 1. This doesn't impact the sending and receiving at all, just scoring.
                 decoded_message = np.clip(decoded_message, 0, 1)
@@ -201,7 +226,7 @@ class DecoderEvaluator(BaseEvaluator):
                 e_fitness = DecoderEvaluator.sender_fitness(original_message, encoded_message, decoded_message,
                                                             enc_species_id, self.species_id, self._no_species_id_score,
                                                             self._loudness_penalty, self._correct_factor)
-                d_fitness = DecoderEvaluator.receiver_fitness(original_message, encoded_message, decoded_message,
+                d_fitness = DecoderEvaluator.receiver_fitness(original_message, decoded_message,
                                                               enc_species_id, self.species_id,
                                                               self._no_species_id_score)
                 species_score, bit_score, total_score = DecoderEvaluator.score(original_message, decoded_message,
@@ -240,32 +265,6 @@ class DecoderEvaluator(BaseEvaluator):
         self.genomes.put(dict(genomes))
 
         self.decoding_scores.put({'species': species_scores, 'bit': bit_scores, 'total': total_scores})
-
-        # Advance the noise one generation
-        self.noise.generation()
-
-    def add_noise(self, message):
-        if self.noise is None:
-            return message
-
-        if self._noise_overwrites_signal:
-            # Replace the message entirely in the channels that have noise with the noise
-            m = np.array(message)
-            n = next(self.noise)
-            m[n != 0] = n[n != 0]
-            return list(m)
-
-        message += next(self.noise)
-        return message
-
-    def overwrite_message_with_noise(self):
-        if self.noise is None:
-            logger.warning('Noise is NONE. Will not overwrite messages.')
-            return
-
-        logger.warning(
-            'Overwriting messages in noisy channels with noise. Should not be used in regular operation. For debugging purposes only.')
-        self._noise_overwrites_signal = True
 
     @staticmethod
     def sender_fitness(original, encode, decode, sender_species, receiver_species,
@@ -316,7 +315,7 @@ class DecoderEvaluator(BaseEvaluator):
         return fitness
 
     @staticmethod
-    def receiver_fitness(original, encode, decode, sender_species, receiver_species,
+    def receiver_fitness(original, decode, sender_species, receiver_species,
                          no_species_id_score=default_config['Evaluation']['no_species_id_score'],
                          correct_factor=default_config['Evaluation']['correct_factor']):
         '''Score the receiver.
