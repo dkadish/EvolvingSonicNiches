@@ -67,6 +67,7 @@ class Spectrum(EncodedStatsBase):
         super(Spectrum, self).__init__(messages)
 
         self.spectra = {}
+        self.received_spectra = {}
         self.n_spectra = None
 
     def handle_message(self, message):
@@ -74,20 +75,25 @@ class Spectrum(EncodedStatsBase):
 
         species = message.species_id
         encoded_message = message.message['encoded']
+        received_message = message.message['received']
 
         if self.n_spectra is None:
             self.n_spectra = len(encoded_message)
 
         if species not in self.spectra:
             self.spectra[species] = [np.zeros(self.n_spectra)]
+        if species not in self.received_spectra:
+            self.received_spectra[species] = [np.zeros(self.n_spectra)]
 
         self.spectra[species][-1] += np.array(encoded_message)
+        self.received_spectra[species][-1] += np.array(received_message)
 
     def handle_generation(self, message):
         super(Spectrum, self).handle_generation(message)
 
         species = message.species_id
         self.spectra[species].append(np.zeros(self.n_spectra))
+        self.received_spectra[species].append(np.zeros(self.n_spectra))
 
 
 class MessageSpectrum(EncodedStatsBase):
@@ -101,6 +107,7 @@ class MessageSpectrum(EncodedStatsBase):
         super(MessageSpectrum, self).__init__(messages)
 
         self.spectra = {}
+        self.received_spectra = {}
         self.n_spectra = None
 
     def handle_message(self, message):
@@ -109,17 +116,23 @@ class MessageSpectrum(EncodedStatsBase):
         species = message.species_id
         original_message = message.message['original']
         encoded_message = message.message['encoded']
+        received_message = message.message['received']
 
         if self.n_spectra is None:
             self.n_spectra = len(encoded_message)
 
         if species not in self.spectra:
             self.spectra[species] = {}
+        if species not in self.received_spectra:
+            self.received_spectra[species] = {}
 
         if original_message not in self.spectra[species]:
             self.spectra[species][original_message] = [np.zeros(self.n_spectra)]
+        if original_message not in self.received_spectra[species]:
+            self.received_spectra[species][original_message] = [np.zeros(self.n_spectra)]
 
         self.spectra[species][original_message][-1] += np.array(encoded_message)
+        self.received_spectra[species][original_message][-1] += np.array(received_message)
 
     def handle_generation(self, message):
         super(MessageSpectrum, self).handle_generation(message)
@@ -127,6 +140,8 @@ class MessageSpectrum(EncodedStatsBase):
         species = message.species_id
         for m in self.spectra[species]:
             self.spectra[species][m].append(np.zeros(self.n_spectra))
+        for m in self.received_spectra[species]:
+            self.received_spectra[species][m].append(np.zeros(self.n_spectra))
 
 
 class Loudness(EncodedStatsBase):
@@ -404,8 +419,9 @@ class Messages(EncodedStatsBase):
     def __init__(self, messages: Queue):
         super(Messages, self).__init__(messages)
 
-        self.encoded = {}
-        self.originals = {}
+        self.encoded = {} # Message as encoded by the senders.
+        self.originals = {} # This is the original message that was sent
+        self.received = {} # The message as received by the receiver. Includes noise, interference, distortion, etc.
 
     def handle_message(self, message: Message):
         super(Messages, self).handle_message(message)

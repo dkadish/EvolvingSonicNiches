@@ -26,7 +26,7 @@ from genome import DefaultGenome
 from parallel import MultiQueue
 from species import Species
 from stats import Spectrum, Cohesion, Loudness, MessageSpectrum, Messages
-from visualize.plot import plot_message_spectrum, plot_scores, plot_stats
+from visualize.plot import plot_message_spectrum, plot_scores, plot_stats, plot_received_message_spectrum
 from visualize.print import print_best
 from noise import Noise, GenerationStepNoise
 
@@ -91,8 +91,8 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
     else:
         n = Noise(noise_level, noise_channel)
     for s in species:
-        s.decoder.evaluator.noise = n
-        # s.decoder.evaluator.overwrite_message_with_noise()
+        s.encoder.evaluator.noise = n
+        # s.encoder.evaluator.overwrite_message_with_noise()
 
     # Start statistics modules
     spectrum_stats = Spectrum(messages.add())
@@ -141,6 +141,7 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
         'encoder_stats': {},
         'decoder_stats': {},
         'message_spectra': {},
+        'received_message_spectra': {},
         'scores': {},
         'generations': generations,
         'noise_channel': noise_channel,
@@ -160,8 +161,11 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
         # TODO: Something is wrong with this module.
         message_spectra = plot_message_spectrum(d, dirname, i, message_spectrum_stats, s, spectrum_stats, vmin,
                                                 view=view)
+        received_message_spectra = plot_received_message_spectrum(d, dirname, i, message_spectrum_stats, s, spectrum_stats, vmin,
+                                                view=view)
 
         pickle_data['message_spectra'][s.species_id] = message_spectra
+        pickle_data['received_message_spectra'][s.species_id] = received_message_spectra
 
         # plot_cohesion(cohesion_stats, d, dirname, i, loudness_stats, s, view=view)
 
@@ -175,7 +179,8 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
 
     pickle_data['messages'] = {
         'original': messages_archive.originals,
-        'encoded': messages_archive.encoded
+        'encoded': messages_archive.encoded,
+        'received': messages_archive.received,
     }
 
     print('Dumping data...')

@@ -150,7 +150,7 @@ def plot_spectrum(spectra, cmap='rainbow', view=False, vmin=None, vmax=None,
 
 
 def plot_message_spectrum(spectra: dict, view: bool = False, vmin: float = None, vmax: float = None,
-                          filename: str = 'spectrum.svg'):
+                          filename: str = 'spectrum.svg', title="Use of the communication spectrum by generation and message"):
     '''Plots the population's average and best fitness.
 
     :param spectra:
@@ -193,7 +193,7 @@ def plot_message_spectrum(spectra: dict, view: bool = False, vmin: float = None,
     cb = fig.colorbar(p, ax=axarr.flat)
     cb.ax.tick_params(labelsize='xx-small')
 
-    fig.suptitle("Use of the communication spectrum by generation and message")
+    fig.suptitle(title)
 
     plt.savefig(filename)
     if view:
