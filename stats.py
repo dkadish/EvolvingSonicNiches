@@ -77,6 +77,7 @@ class Spectrum(EncodedStatsBase):
         encoded_message = message.message['encoded']
         received_message = message.message['received']
 
+        # Figure out the number of channels, if not set
         if self.n_spectra is None:
             self.n_spectra = len(encoded_message)
 
@@ -434,8 +435,10 @@ class Messages(EncodedStatsBase):
 
         original = message.message['original']
         encoded = message.message['encoded']
+        received = message.message['received']
         self.originals[species][-1].append(original)
         self.encoded[species][-1].append(encoded)
+        self.received[species][-1].append(received)
 
     def handle_generation(self, message):
         super(Messages, self).handle_generation(message)
@@ -445,10 +448,12 @@ class Messages(EncodedStatsBase):
         # Reformat the last generation as a numpy array
         self.encoded[species][-1] = np.array(self.encoded[species][-1])
         self.originals[species][-1] = np.array(self.originals[species][-1])
+        self.received[species][-1] = np.array(self.received[species][-1])
 
         # Append a new, empty array
         self.encoded[species].append([])
         self.originals[species].append([])
+        self.received[species].append([])
 
     def handle_finish(self):
         super(Messages, self).handle_finish()
@@ -456,3 +461,7 @@ class Messages(EncodedStatsBase):
         for s in self.encoded:
             if len(self.encoded[s][-1]) == 0:
                 del self.encoded[s][-1]
+
+        for s in self.received:
+            if len(self.received[s][-1]) == 0:
+                del self.received[s][-1]

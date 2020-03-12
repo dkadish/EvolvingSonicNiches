@@ -1,19 +1,39 @@
+import logging
 import os
 import sys
+from datetime import datetime
+from itertools import combinations
 
 import numpy as np
 from scipy.signal import savgol_filter
 
 import matplotlib.pyplot as plt
+from scipy.stats import ks_2samp
+from sklearn import cluster
 
 en_path =  os.path.abspath(os.path.join(__file__,'..','..'))
 print(en_path)
 sys.path.append(en_path)
 
 from analysis.data import load_subset_fn
-from visualize import plot_spectrum
+from visualize import plot_spectrum, plot_stats, plot_species, plot_summary_stats
+
+logger = logging.getLogger('analysis.noise')
+
+def __load_all_messages(d):
+    """Load all of the messages sent form each run.
+    """
+    species_no = next(iter(d['messages']['encoded']))
+    messages = d['messages']['encoded'][species_no]
+
+    return messages
 
 def __load_messages(d):
+    """Load the spectra of messages from each run.
+
+    :param d:
+    :return:
+    """
     species_no = next(iter(d['message_spectra']))
     total = d['message_spectra'][species_no]['total']
 
@@ -50,50 +70,48 @@ def plot_channel_usage(args):
     plot_spectrum(usage, view=True, title='Usage map', filename='channel_usage.svg')
 
 def plot_fitness_from_multiple_runs(args):
+    view=True
+    now = datetime.now()
+
     def load(d):
-        species_no = next(iter(d['scores']))
-        total = d['scores'][species_no]['total']
+        species_no = next(iter(d['encoder_stats']))
+        encoder_stats, decoder_stats = d['encoder_stats'][species_no], d['decoder_stats'][species_no]
 
-        return total
+        return (encoder_stats, decoder_stats)
 
-    scores = load_subset_fn(load, args.dir)
+    stats = load_subset_fn(load, args.dir)
 
     if args.individual:
-        n = args.number is None and len(scores) or args.number
-        for i, data in enumerate(scores):
+        n = args.number is None and len(stats) or args.number
+        for i, (encoder_stats, decoder_stats) in enumerate(stats):
             if i >= n: break
-            plt.plot(range(data.size), data, label=i)
-
-            if args.save:
-                plt.savefig('fitness-{}.svg'.format(i))
-
-            plt.show()
-            plt.close()
-
-            # plot_spectrum(data, view=True, title='Sender spectrum #{}'.format(i))
+            plot_stats(encoder_stats, view=view,
+                       filename='data/%s/%s-avg_fitness_enc.svg' % (
+                           args.dir, now.strftime('%y-%m-%d_%H-%M-%S')))
+            plot_species(encoder_stats, view=view,
+                         filename='data/%s/%s-speciation_enc.svg' % (
+                             args.dir, now.strftime('%y-%m-%d_%H-%M-%S')))
+            plot_stats(decoder_stats, view=view,
+                       filename='data/%s/%s-avg_fitness_dec.svg' % (
+                           args.dir, now.strftime('%y-%m-%d_%H-%M-%S')))
+            plot_species(decoder_stats, view=view,
+                         filename='data/%s/%s-speciation_dec.svg' % (
+                             args.dir, now.strftime('%y-%m-%d_%H-%M-%S')))
 
     # Calculate average change between generations
-    s = np.array(scores)
-    diffs = s[:, 1:] - s[:, :-1]
-    avg_diffs = np.concatenate([[0, ], np.average(diffs, axis=0)])
+    encoders, decoders = zip(*stats)
 
-    avg_scores = np.average(scores, axis=0)
-    plt.plot(range(avg_scores.size), savgol_filter(avg_scores, 11, 3), label="tot")
 
-    ax2 = plt.gca().twinx()
-    ax2.plot(range(avg_scores.size), savgol_filter(avg_diffs, 21, 3), label="dif", alpha=0.2)
-    plt.legend()
+    for population in (encoders, decoders):
+        best = map(lambda i: [g.fitness for g in i.most_fit_genomes], population)
+        avg = map(lambda i: i.get_fitness_mean(), population)
+        std = map(lambda i: i.get_fitness_stdev(), population)
 
-    if args.save:
-        plt.savefig('fitness.svg')
+        # Average over all runs
+        best, avg = [np.average(list(stat), axis=0) for stat in [best, avg]]
+        std = np.sum(np.power(list(std), 2))/len(list(std))
 
-    plt.show()
-    plt.close()
-
-    # avg_spectrum = np.average(spectra, axis=0)
-    # print(avg_spectrum.shape)
-    #
-    # plot_spectrum(avg_spectrum,view=True, title='Sender spectrum (total)')
+        plot_summary_stats(avg, std, best, title='Fitness averages over N runs', xlabel='Generation', ylabel='Fitness', view=True, filename='')
 
 def plot_spectrogram_from_multiple_runs(args):
 
@@ -119,6 +137,128 @@ def plot_spectrogram_from_multiple_runs(args):
 
     plot_spectrum(avg_spectrum,view=True, title='Sender spectrum (total)')
 
+def plot_histogram_of_channel_volume(args):
+    """ Print a series of 9 histograms showing the distribution of values at a generation of the simulation
+    over the N runs for each channel.
+
+    :param args:
+    :return:
+    """
+    generation = args.generation
+    n_average = args.n_average
+
+    spectra = load_subset_fn(__load_messages, args.dir)
+    run_volumes = []
+    for spectrum in spectra:
+        if generation is None:
+            used_spectrum = spectrum[-n_average:]
+        else:
+            used_spectrum = spectrum[generation - n_average:generation]
+
+        avg_volume = np.average(used_spectrum, axis=0)
+        run_volumes.append(avg_volume)
+
+    volumes = np.concatenate(run_volumes)
+    volume_hists = np.hsplit(volumes, 9)
+
+    fig, axes = plt.subplots(3, 3, sharex=True, sharey=True, tight_layout=True)
+    bins = np.arange(0, 1, step=0.1)
+    # zeros = []
+
+    for i, ax in enumerate(axes.flat):
+        vh = volume_hists[i]
+        ax.hist(vh, bins=bins)
+        # ax.hist(vh[vh>0.01])
+        # zeros.append(vh[vh<=0.01].size)
+
+    plt.savefig('spectra_hist.png')
+    plt.show()
+    plt.close()
+
+    # plt.bar(np.arange(9), zeros)
+    # plt.show()
+
+    print('Finished plotting')
+    logger.info('Finished Plotting')
+
+def plot_histogram_of_channel_volume_all_messages(args):
+    """ Print a series of 9 histograms showing the distribution of values at a generation of the simulation
+    over the N runs for each channel.
+
+    This was an attempt to be more fine-grained and use all messages, but it didn't work very well...
+
+    :param args:
+    :return:
+    """
+    generation = args.generation
+    n_average = args.n_average
+
+    message_archive = load_subset_fn(__load_all_messages, args.dir)
+    run_volumes = []
+    for messages_by_run in message_archive:
+        if generation is None:
+            used_messages = messages_by_run[-n_average:]
+        else:
+            used_messages = messages_by_run[generation - n_average:generation]
+
+        avg_volume = np.average(np.concatenate(used_messages), axis=0)
+        run_volumes.append(avg_volume)
+
+    volumes = np.concatenate(run_volumes)
+    volume_hists = np.hsplit(volumes, 9)
+
+    fig, axes = plt.subplots(3, 3, sharex=True, sharey=True, tight_layout=True)
+    bins = np.arange(0,0.7,step=0.1)
+    zeros = []
+
+    for i, ax in enumerate(axes.flat):
+        vh = volume_hists[i]
+        ax.hist(vh, bins=bins)
+        # zeros.append(vh[vh<=0.01].size)
+
+    plt.savefig('spectra_hist_all_msgs.png')
+    plt.show()
+    plt.close()
+
+    # plt.bar(np.arange(9), zeros)
+    # plt.show()
+
+    print('Finished plotting')
+    logger.info('Finished Plotting')
+
+    # Kolmogorov-Smirnov Test
+    ks_stat = np.zeros(shape=(9, 9))
+    ks_p = np.zeros(shape=(9, 9))
+    for i, j in combinations(range(9), 2):
+        print(i, j)
+        ks_calc = ks_2samp(volume_hists[i], volume_hists[j])
+        ks_stat[i, j] = ks_calc.statistic
+        ks_stat[j, i] = ks_calc.statistic
+        ks_p[i, j] = ks_calc.pvalue
+        ks_p[j, i] = ks_calc.pvalue
+
+    np.set_printoptions(precision=3)
+
+    # Clustering
+    cluster_centers_indices, labels = cluster.affinity_propagation(ks_stat)
+    n_clusters_ = len(cluster_centers_indices)
+
+    print('Stat')
+    print('Estimated number of clusters: %d' % n_clusters_)
+    print(cluster_centers_indices)
+    print(labels)
+
+    print(ks_stat)
+
+    print('P-value')
+
+    cluster_centers_indices, labels = cluster.affinity_propagation(ks_p)
+    n_clusters_ = len(cluster_centers_indices)
+
+    print('Estimated number of clusters: %d' % n_clusters_)
+    print(cluster_centers_indices)
+    print(labels)
+    print(ks_p)
 
 if __name__ == '__main__':
     import argparse
@@ -146,8 +286,15 @@ if __name__ == '__main__':
     parser_scores = subparsers.add_parser('scores')
     parser_scores.set_defaults(func=plot_fitness_from_multiple_runs)
 
-    parser_scores = subparsers.add_parser('usage')
-    parser_scores.set_defaults(func=plot_channel_usage)
+    parser_usage = subparsers.add_parser('usage')
+    parser_usage.set_defaults(func=plot_channel_usage)
+
+    parser_hist = subparsers.add_parser('hist')
+    parser_hist.set_defaults(func=plot_histogram_of_channel_volume_all_messages)
+    parser.add_argument('-g','--generation', metavar='G', type=int, default=None,
+                        help='Which generation to plot at')
+    parser.add_argument('--n-average', metavar='N', type=int, default=10,
+                        help='Average over N runs')
 
     a = sys.argv
     print(sys.argv)

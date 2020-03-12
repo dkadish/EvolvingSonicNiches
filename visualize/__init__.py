@@ -30,14 +30,23 @@ def plot_stats(statistics, ylog=False, view=False, filename='avg_fitness.svg'):
     avg_fitness = np.array(statistics.get_fitness_mean())
     stdev_fitness = np.array(statistics.get_fitness_stdev())
 
-    plt.plot(generation, avg_fitness, 'b-', label="average")
-    plt.plot(generation, avg_fitness - stdev_fitness, 'g-.', label="-1 sd")
-    plt.plot(generation, avg_fitness + stdev_fitness, 'g-.', label="+1 sd")
-    plt.plot(generation, best_fitness, 'r-', label="best")
+    plot_summary_stats(avg_fitness, stdev_fitness, best_fitness,
+                       title="Population's average and best fitness",
+                       xlabel="Generations", ylabel="Fitness",
+                       ylog=ylog, view=view, filename=filename)
 
-    plt.title("Population's average and best fitness")
-    plt.xlabel("Generations")
-    plt.ylabel("Fitness")
+
+def plot_summary_stats(avg, std, best, title, xlabel, ylabel, ylog, view, filename):
+    x = range(len(avg))
+
+    plt.plot(x, avg, 'b-', label="average")
+    plt.plot(x, avg - std, 'g-.', label="-1 sd")
+    plt.plot(x, avg + std, 'g-.', label="+1 sd")
+    plt.plot(x, best, 'r-', label="best")
+
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
     plt.grid()
     plt.legend(loc="best")
     if ylog:
@@ -150,7 +159,8 @@ def plot_spectrum(spectra, cmap='rainbow', view=False, vmin=None, vmax=None,
 
 
 def plot_message_spectrum(spectra: dict, view: bool = False, vmin: float = None, vmax: float = None,
-                          filename: str = 'spectrum.svg', title="Use of the communication spectrum by generation and message"):
+                          filename: str = 'spectrum.svg',
+                          title="Use of the communication spectrum by generation and message"):
     '''Plots the population's average and best fitness.
 
     :param spectra:
