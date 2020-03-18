@@ -432,6 +432,8 @@ class Messages(EncodedStatsBase):
             self.encoded[species] = [[]]
         if species not in self.originals:
             self.originals[species] = [[]]
+        if species not in self.received:
+            self.received[species] = [[]]
 
         original = message.message['original']
         encoded = message.message['encoded']
