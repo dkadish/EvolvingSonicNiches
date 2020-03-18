@@ -5,6 +5,7 @@ from datetime import datetime
 from itertools import combinations
 
 import numpy as np
+import networkx as nx
 from scipy.signal import savgol_filter
 
 import matplotlib.pyplot as plt
@@ -137,7 +138,7 @@ def plot_spectrogram_from_multiple_runs(args):
 
     plot_spectrum(avg_spectrum,view=True, title='Sender spectrum (total)')
 
-def plot_histogram_of_channel_volume(args):
+def plot_histogram_of_channel_volume_old(args):
     """ Print a series of 9 histograms showing the distribution of values at a generation of the simulation
     over the N runs for each channel.
 
@@ -181,11 +182,9 @@ def plot_histogram_of_channel_volume(args):
     print('Finished plotting')
     logger.info('Finished Plotting')
 
-def plot_histogram_of_channel_volume_all_messages(args):
+def plot_histogram_of_channel_volume(args):
     """ Print a series of 9 histograms showing the distribution of values at a generation of the simulation
     over the N runs for each channel.
-
-    This was an attempt to be more fine-grained and use all messages, but it didn't work very well...
 
     :param args:
     :return:
@@ -204,8 +203,10 @@ def plot_histogram_of_channel_volume_all_messages(args):
         avg_volume = np.average(np.concatenate(used_messages), axis=0)
         run_volumes.append(avg_volume)
 
-    volumes = np.concatenate(run_volumes)
+    volumes = np.stack(run_volumes)
+    assert volumes.shape == (len(message_archive), 9)
     volume_hists = np.hsplit(volumes, 9)
+    volume_hists = list(map(lambda a: np.ravel(a), volume_hists))
 
     fig, axes = plt.subplots(3, 3, sharex=True, sharey=True, tight_layout=True)
     bins = np.arange(0,0.7,step=0.1)
@@ -237,7 +238,7 @@ def plot_histogram_of_channel_volume_all_messages(args):
         ks_p[i, j] = ks_calc.pvalue
         ks_p[j, i] = ks_calc.pvalue
 
-    np.set_printoptions(precision=3)
+    np.set_printoptions(precision=4, suppress=True)
 
     # Clustering
     cluster_centers_indices, labels = cluster.affinity_propagation(ks_stat)
@@ -250,7 +251,7 @@ def plot_histogram_of_channel_volume_all_messages(args):
 
     print(ks_stat)
 
-    print('P-value')
+    print('P-value') # This is the important one? Confidence that the null hypothesis can (low) or cannot (high) be rejected
 
     cluster_centers_indices, labels = cluster.affinity_propagation(ks_p)
     n_clusters_ = len(cluster_centers_indices)
@@ -259,6 +260,140 @@ def plot_histogram_of_channel_volume_all_messages(args):
     print(cluster_centers_indices)
     print(labels)
     print(ks_p)
+
+    G = nx.Graph()
+    G.add_nodes_from(range(9))
+    for i in range(9):
+        for j in range(i, 9):
+            if ks_p[i,j] > 0.01:
+                G.add_edge(i, j, weight=ks_stat[i, j])
+
+    plt.plot()
+    nx.draw(G, with_labels=True, font_weight='bold')
+    plt.savefig('channel_volume_histogram.png')
+    plt.show()
+    plt.close()
+
+def plot_histogram_of_channel_volume_across_generations(args):
+    """Analyze the difference between volume histograms before and after a disturbance
+
+    :param args:
+    :return:
+    """
+    generation = args.generation
+    n_average = args.n_average
+
+    message_archive = load_subset_fn(__load_all_messages, args.dir)
+    run_volumes_before = []
+    run_volumes_after = []
+    for messages_by_run in message_archive:
+        used_messages_after = messages_by_run[-n_average:]
+        used_messages_before = messages_by_run[generation - n_average:generation]
+
+        avg_volume_before = np.average(np.concatenate(used_messages_before), axis=0)
+        run_volumes_before.append(avg_volume_before)
+
+        avg_volume_after = np.average(np.concatenate(used_messages_after), axis=0)
+        run_volumes_after.append(avg_volume_after)
+
+    volumes_b = np.stack(run_volumes_before)
+    assert volumes_b.shape == (len(message_archive), 9)
+    volume_b_hists = np.hsplit(volumes_b, 9)
+    volume_b_hists = list(map(lambda a: np.ravel(a), volume_b_hists))
+
+    volumes_a = np.stack(run_volumes_after)
+    assert volumes_a.shape == (len(message_archive), 9)
+    volume_a_hists = np.hsplit(volumes_a, 9)
+    volume_a_hists = list(map(lambda a: np.ravel(a), volume_a_hists))
+
+    fig, axes = plt.subplots(3, 3, sharex=True, sharey=True, tight_layout=True)
+    bins = np.arange(0,0.7,step=0.05)
+    zeros = []
+
+    for i, ax in enumerate(axes.flat):
+        vh_a = volume_a_hists[i]
+        vh_b = volume_b_hists[i]
+        ax.hist(vh_b, bins=bins, alpha=0.5, label='before')
+        ax.hist(vh_a, bins=bins, alpha=0.5, label='after')
+        # zeros.append(vh[vh<=0.01].size)
+
+    plt.legend(loc='upper right')
+    plt.savefig('spectra_hist_all_msgs.png')
+    plt.show()
+    plt.close()
+
+    # plt.bar(np.arange(9), zeros)
+    # plt.show()
+
+    print('Finished plotting')
+    logger.info('Finished Plotting')
+
+    for v, volume_hists in enumerate([volume_a_hists, volume_b_hists]):
+        print('GENERATION: {}'.format(v == 0 and generation or 'Final'))
+
+        # Kolmogorov-Smirnov Test
+        ks_stat = np.zeros(shape=(9, 9))
+        ks_p = np.zeros(shape=(9, 9))
+        for i, j in combinations(range(9), 2):
+            print(i, j)
+            ks_calc = ks_2samp(volume_hists[i], volume_hists[j])
+            ks_stat[i, j] = ks_calc.statistic
+            ks_stat[j, i] = ks_calc.statistic
+            ks_p[i, j] = ks_calc.pvalue
+            ks_p[j, i] = ks_calc.pvalue
+
+        np.set_printoptions(precision=4, suppress=True)
+
+        # Clustering
+        cluster_centers_indices, labels = cluster.affinity_propagation(ks_stat)
+        n_clusters_ = len(cluster_centers_indices)
+
+        print('Stat')
+        print('Estimated number of clusters: %d' % n_clusters_)
+        print(cluster_centers_indices)
+        print(labels)
+
+        print(ks_stat)
+
+        print('P-value') # This is the important one? Confidence that the null hypothesis can (low) or cannot (high) be rejected
+
+        cluster_centers_indices, labels = cluster.affinity_propagation(ks_p)
+        n_clusters_ = len(cluster_centers_indices)
+
+        print('Estimated number of clusters: %d' % n_clusters_)
+        print(cluster_centers_indices)
+        print(labels)
+        print(ks_p)
+
+        G = nx.Graph()
+        G.add_nodes_from(range(9))
+        for i in range(9):
+            for j in range(i, 9):
+                if ks_p[i,j] > 0.01:
+                    G.add_edge(i, j, weight=ks_stat[i, j])
+
+        plt.plot()
+        nx.draw(G, with_labels=True, font_weight='bold')
+        plt.savefig('channel_volume_histogram_{}.png'.format(v))
+        plt.show()
+        plt.close()
+
+    # Kolmogorov-Smirnov Test For Generations G and Final
+    print('Channel: KS-Value, P-value')
+    ks_stat = []
+    ks_p = []
+    for i in range(9):
+        ks_calc = ks_2samp(volume_a_hists[i], volume_b_hists[i])
+        ks_stat.append(ks_calc.statistic)
+        ks_p.append(ks_calc.pvalue)
+        print('{}: {}, {}'.format(i, ks_calc.statistic, ks_calc.pvalue))
+
+    fig, axes = plt.subplots(2, 1, sharex=True, tight_layout=True)
+    axes[0].bar(range(9), ks_stat)
+    axes[1].bar(range(9), ks_p)
+    plt.savefig('before_after_ks.png')
+    plt.show()
+    plt.close()
 
 if __name__ == '__main__':
     import argparse
@@ -290,11 +425,18 @@ if __name__ == '__main__':
     parser_usage.set_defaults(func=plot_channel_usage)
 
     parser_hist = subparsers.add_parser('hist')
-    parser_hist.set_defaults(func=plot_histogram_of_channel_volume_all_messages)
-    parser.add_argument('-g','--generation', metavar='G', type=int, default=None,
+    parser_hist.set_defaults(func=plot_histogram_of_channel_volume)
+    parser_hist.add_argument('-g','--generation', metavar='G', type=int, default=None,
                         help='Which generation to plot at')
-    parser.add_argument('--n-average', metavar='N', type=int, default=10,
-                        help='Average over N runs')
+    parser_hist.add_argument('--n-average', metavar='N', type=int, default=10,
+                        help='Average over N generations')
+
+    parser_hist_gen = subparsers.add_parser('hist_gen')
+    parser_hist_gen.set_defaults(func=plot_histogram_of_channel_volume_across_generations)
+    parser_hist_gen.add_argument('-g','--generation', metavar='G', type=int, default=299,
+                        help='Which generation to plot at')
+    parser_hist_gen.add_argument('--n-average', metavar='N', type=int, default=10,
+                        help='Average over N generations')
 
     a = sys.argv
     print(sys.argv)
