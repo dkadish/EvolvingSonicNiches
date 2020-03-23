@@ -37,15 +37,34 @@ class EncodedStatsBase:
         self.handle_finish()
 
     def handle_message(self, message):
+        """Process a message with in a simulation.
+
+        :param message:
+        :return:
+        """
         pass
 
     def handle_generation(self, message):
+        """Process the end of a generation for a population within a species.
+
+        :param message:
+        :return:
+        """
         pass
 
     def handle_full_generation(self, message):
+        """Process the end of a generation for all populations within an entire species.
+
+        :param message:
+        :return:
+        """
         pass
 
     def handle_finish(self):
+        """Process the end of a simulation.
+
+        :return:
+        """
         pass
 
     def done(self):
@@ -82,19 +101,31 @@ class Spectrum(EncodedStatsBase):
             self.n_spectra = len(encoded_message)
 
         if species not in self.spectra:
-            self.spectra[species] = [np.zeros(self.n_spectra)]
+            self.spectra[species] = [[],]
         if species not in self.received_spectra:
-            self.received_spectra[species] = [np.zeros(self.n_spectra)]
+            self.received_spectra[species] = [[],]
 
-        self.spectra[species][-1] += np.array(encoded_message)
-        self.received_spectra[species][-1] += np.array(received_message)
+        self.spectra[species][-1].append(np.array(encoded_message))
+        self.received_spectra[species][-1].append(np.array(received_message))
 
     def handle_generation(self, message):
         super(Spectrum, self).handle_generation(message)
 
         species = message.species_id
-        self.spectra[species].append(np.zeros(self.n_spectra))
-        self.received_spectra[species].append(np.zeros(self.n_spectra))
+
+        # Average the last generation
+        self.spectra[species][-1] = np.average(self.spectra[species][-1], axis=0)
+        self.received_spectra[species][-1] = np.average(self.received_spectra[species][-1], axis=0)
+
+        self.spectra[species].append([])
+        self.received_spectra[species].append([])
+
+    def handle_finish(self):
+
+        # Clear the last, empty element from the array
+        for species in self.spectra:
+            self.spectra[species] = self.spectra[species][:-1]
+            self.received_spectra[species] = self.received_spectra[species][:-1]
 
 
 class MessageSpectrum(EncodedStatsBase):
@@ -128,21 +159,33 @@ class MessageSpectrum(EncodedStatsBase):
             self.received_spectra[species] = {}
 
         if original_message not in self.spectra[species]:
-            self.spectra[species][original_message] = [np.zeros(self.n_spectra)]
+            self.spectra[species][original_message] = [[]]
         if original_message not in self.received_spectra[species]:
-            self.received_spectra[species][original_message] = [np.zeros(self.n_spectra)]
+            self.received_spectra[species][original_message] = [[]]
 
-        self.spectra[species][original_message][-1] += np.array(encoded_message)
-        self.received_spectra[species][original_message][-1] += np.array(received_message)
+        self.spectra[species][original_message][-1].append(np.array(encoded_message))
+        self.received_spectra[species][original_message][-1].append(np.array(received_message))
 
     def handle_generation(self, message):
         super(MessageSpectrum, self).handle_generation(message)
 
         species = message.species_id
+
+        # Average the last generation
         for m in self.spectra[species]:
-            self.spectra[species][m].append(np.zeros(self.n_spectra))
-        for m in self.received_spectra[species]:
-            self.received_spectra[species][m].append(np.zeros(self.n_spectra))
+            self.spectra[species][m][-1] = np.average(self.spectra[species][m][-1], axis=0)
+            self.received_spectra[species][m][-1] = np.average(self.received_spectra[species][m][-1], axis=0)
+
+        for m in self.spectra[species]:
+            self.spectra[species][m].append([])
+            self.received_spectra[species][m].append([])
+
+    def handle_finish(self):
+        # Clear the last, empty element from each array
+        for species in self.spectra:
+            for m in self.spectra[species]:
+                self.spectra[species][m] = self.spectra[species][m][:-1]
+                self.received_spectra[species][m] = self.received_spectra[species][m][:-1]
 
 
 class Loudness(EncodedStatsBase):
