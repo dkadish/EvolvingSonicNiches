@@ -1,27 +1,19 @@
-"""
-"""
-
 from __future__ import print_function
 
 import sys
-import os
-
-
-en_path =  os.path.abspath(os.path.join(__file__,'..','..'))
-print(en_path)
-sys.path.append(en_path)
-
-
 from datetime import datetime
 from multiprocessing.pool import Pool
 from multiprocessing import Value
 from string import ascii_uppercase
 from threading import Thread
-
 import joblib
 import numpy as np
-
 import neat
+
+EN_PATH = os.path.abspath(os.path.join(__file__, '..', '..'))
+print(EN_PATH)
+sys.path.append(EN_PATH)
+
 from genome import DefaultGenome
 from parallel import MultiQueue
 from species import Species
@@ -47,20 +39,14 @@ N = 300
 N_RUNS = 5
 
 
-def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_level, noise_generation, directory='', run_id=None):
-    if run_id is None:
-        print('No run_id')
-        dirname = '{0:%y}{1}{0:%d_%H%M%S}'.format(datetime.now(), ascii_uppercase[int(datetime.now().month) - 1])
-    else:
-        print('Running run number {}'.format(run_id + 1))
-        run_id += 1
-        dirname = '{0:%y}{1}{0:%d_%H%M%S}-{2}'.format(datetime.now(), ascii_uppercase[int(datetime.now().month) - 1], run_id)
-    if directory != '':
-        os.makedirs('data/{}'.format(directory), exist_ok=True)
-        dirname = '{}/{}'.format(directory, dirname)
+def load_run_from_directory(directory):
+    pass
 
-    os.makedirs('data/{}'.format(dirname))
-    
+
+def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_level, noise_generation, directory='',
+        run_id=None, resume=None):
+    dirname = setup_directories(directory, run_id)
+
     # Load configuration
     config_enc = neat.Config(DefaultGenome, neat.DefaultReproduction,
                              neat.DefaultSpeciesSet, neat.DefaultStagnation,
@@ -86,44 +72,12 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
     species = [Species(config_enc, config_dec, messages, pairwise=False, checkpoint_dir='data/{}'.format(directory), evaluator_config=eval_config) for _ in range(1)]
 
     # Set noise parameters
-    if noise_generation is not None:
-        n = GenerationStepNoise(noise_level, noise_channel, noise_generation)
-    else:
-        n = Noise(noise_level, noise_channel)
-    for s in species:
-        s.encoder.evaluator.noise = n
-        # s.encoder.evaluator.overwrite_message_with_noise()
+    setup_noise(noise_channel, noise_generation, noise_level, species)
 
     # Start statistics modules
-    spectrum_stats = Spectrum(messages.add())
-    message_spectrum_stats = MessageSpectrum(messages.add())
-    cohesion_stats = Cohesion(messages.add())
-    loudness_stats = Loudness(messages.add())
-    # cluster_stats = Cluster(messages.add())
-    messages_archive = Messages(messages.add())
-    stats_mods = [spectrum_stats, message_spectrum_stats, cohesion_stats, loudness_stats,  # cluster_stats,
-                  messages_archive]
+    message_spectrum_stats, messages_archive, spectrum_stats, stats_mods = setup_stats(messages)
 
-    threads = [Thread(target=s.run) for s in stats_mods]
-    for s in threads:
-        s.start()
-
-    # Run for up to 300 generations.
-    n = generations
-    k = 0
-    while n < 0 or k < n:
-        k += 1
-        for s in species:
-            s.start()
-        for s in species:
-            s.join()
-
-    for s in species:
-        s.decoding_scores.put(False)
-
-    for s, t in zip(stats_mods, threads):
-        s.done()
-        t.join()
+    do_evolution(generations, species, stats_mods)
 
     ####################################################################################################################
 
@@ -131,11 +85,12 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
     
 
     pickle_file = 'data/{}/data.joblib'.format(dirname)
+    # TODO This should become a data archive class
     pickle_data = {
         'config': {
             'sender': config_enc,
             'receiver': config_dec,
-            'n_generations': n,
+            'n_generations': generations,
         },
         'evaluator_config': eval_config,
         'encoder_stats': {},
@@ -148,7 +103,7 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
         'noise_level': noise_level
     }
 
-    d = datetime.now()
+    ####### Plot and Pickle #########
     for i, s in enumerate(species):
         node_names_dec, node_names_enc = print_best(config_dec, config_enc, i, s)
 
@@ -186,6 +141,72 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
     print('Dumping data...')
 
     joblib.dump(pickle_data, pickle_file)
+
+
+def setup_stats(messages):
+    spectrum_stats = Spectrum(messages.add())
+    message_spectrum_stats = MessageSpectrum(messages.add())
+    cohesion_stats = Cohesion(messages.add())
+    loudness_stats = Loudness(messages.add())
+    # cluster_stats = Cluster(messages.add())
+    messages_archive = Messages(messages.add())
+    stats_mods = [spectrum_stats, message_spectrum_stats, cohesion_stats, loudness_stats,  # cluster_stats,
+                  messages_archive]
+    return message_spectrum_stats, messages_archive, spectrum_stats, stats_mods
+
+
+def setup_noise(noise_channel, noise_generation, noise_level, species):
+    if noise_generation is not None:
+        n = GenerationStepNoise(noise_level, noise_channel, noise_generation)
+    else:
+        n = Noise(noise_level, noise_channel)
+    for s in species:
+        s.encoder.evaluator.noise = n
+        # s.encoder.evaluator.overwrite_message_with_noise()
+
+
+def setup_directories(directory, run_id):
+    """Set up the directory for the run data.
+
+    Figure out what the directory should be called and then make it and return the path.
+
+    :param directory: Base directory
+    :param run_id: Which run (for multi-run simulations)
+    :return: Path to the data directory
+    """
+
+    if run_id is None:
+        print('No run_id')
+        dirname = '{0:%y}{1}{0:%d_%H%M%S}'.format(datetime.now(), ascii_uppercase[int(datetime.now().month) - 1])
+    else:
+        print('Running run number {}'.format(run_id + 1))
+        run_id += 1
+        dirname = '{0:%y}{1}{0:%d_%H%M%S}-{2}'.format(datetime.now(), ascii_uppercase[int(datetime.now().month) - 1],
+                                                      run_id)
+    if directory != '':
+        os.makedirs('data/{}'.format(directory), exist_ok=True)
+        dirname = '{}/{}'.format(directory, dirname)
+    os.makedirs('data/{}'.format(dirname))
+    return dirname
+
+
+def do_evolution(generations, species, stats_mods):
+    threads = [Thread(target=s.run) for s in stats_mods]
+    for s in threads:
+        s.start()
+    # Run for up to 300 generations.
+    k = 0
+    while generations < 0 or k < generations:
+        k += 1
+        for s in species:
+            s.start()
+        for s in species:
+            s.join()
+    for s in species:
+        s.decoding_scores.put(False)
+    for s, t in zip(stats_mods, threads):
+        s.done()
+        t.join()
 
 
 def main(args):

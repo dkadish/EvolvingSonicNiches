@@ -65,6 +65,8 @@ def plot_cohesion(cohesion_stats, now, dirname, species_id, loudness_stats, spec
        filename='data/%s/%s-%i-message_cohesion.svg' % (
            dirname, now.strftime('%y-%m-%d_%H-%M-%S'), species_id))
 
+def process_message_spectrum():
+    pass
 
 def plot_message_spectrum(now: datetime, dirname: str, species_id: int, message_spectrum_stats: stats.MessageSpectrum,
                           species: Species, spectrum_stats: stats.Spectrum, vmin: float, view: bool = VIEW):
