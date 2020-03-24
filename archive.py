@@ -11,6 +11,12 @@ class Filterable:
         self.subspecies = subspecies
 
 class GenerationalMessages(Filterable):
+    """Holds an ordered set of messages from a generation of simulation.
+
+    The messages are stored in 3 N-length arrays, where N is the number of messages sent in the generation.
+    The three arrays, original, encoded, and received represent the various stages of the message in simulation.
+
+    """
 
     def __init__(self, original, encoded, received, run=None, generation=None, species=None, subspecies=None):
         super().__init__(run, generation, species, subspecies)
@@ -19,7 +25,7 @@ class GenerationalMessages(Filterable):
         self.encoded = encoded
         self.received = received
 
-        self._original_packed = np.packbits(self.original, axis=1)
+        self._original_packed = np.packbits(np.bool8(self.original), axis=1)
 
     @property
     def count(self):
@@ -30,7 +36,21 @@ class GenerationalMessages(Filterable):
         assert self.original.shape[0] == self.encoded.shape[0] == self.received.shape[0]
         return self.original.shape[0]
 
+    @property
+    def channels(self):
+        """Number of channels for messaging.
+
+        :return:
+        """
+        assert self.encoded.shape[1] == self.received.shape[1]
+        return self.encoded.shape[1]
+
     def filter(self, original):
+        """Filter by original message.
+
+        :param original:
+        :return: A new instance of GenerationalMessage with only the messages that originated as original.
+        """
         try:
             packed = np.packbits(original, axis=1)
         except np.AxisError:
@@ -53,22 +73,48 @@ class Stats(Filterable):
 class FilterableList(UserList):
 
     def generation(self, g):
-        """Returns a Filterable list with only items in the specified generation(s)
+        """Returns a FilterableList with only items in the specified generation(s)
 
-        :return:
+        :return: FilterableList with items from generation g
         """
         return self.filter(generation=g)
 
     def species(self, s):
+        """Returns a FilterableList with only items in the specified species.
+
+        Species here refers to experimental species (for example, if there are two distinct
+        species communicating within a soundscape).
+
+        :return: FilterableList with items from species s
+        """
         return self.filter(species=s)
 
     def subspecies(self, s):
+        """Returns a FilterableList with only items in the specified subspecies
+
+        Subspecies refers to the NEAT concept of species, in which an evolutionary population
+        is subdivided to maintain diversity. Here, NEAT species are called subspecies.
+
+        :return: FilterableList with items from subspecies s
+        """
         return self.filter(subspecies=s)
 
     def run(self, r):
+        """Returns a FilterableList with only items from the specified run(s)
+
+        :return: FilterableList with items from run r
+        """
         return self.filter(run=r)
 
     def filter(self, run=None, generation=None, species=None, subspecies=None):
+        """A general filter for paring the list down by multiple parameters
+
+        :param run: int or list of runs to select
+        :param generation: int or list of generations to select
+        :param species: int or list of species to select
+        :param subspecies: int or list of subspecies to select
+        :return:
+        """
         sublist = self.data
 
         if run is not None:
@@ -85,6 +131,7 @@ class FilterableList(UserList):
 
         return self.__class__(sublist)
 
+    @property
     def count(self):
         return len(self.data)
 
@@ -114,11 +161,42 @@ class MessageList(FilterableList):
     def received(self):
         return np.concatenate([d.received for d in self.data], axis=0)
 
+    @staticmethod
+    def from_message_archive(message_archive, run=None):
+        species = list(message_archive.originals.keys())
+        ml = MessageList()
+        for s in species:
+            for g in range(len(message_archive.originals[s])):
+                if type(message_archive.originals[s][g]) == list and len(message_archive.originals[s][g]) == 0:
+                    break
+                original = message_archive.originals[s][g]
+                encoded = message_archive.encoded[s][g]
+                try:
+                    received = message_archive.received[s][g]
+                except KeyError:
+                    received = message_archive.encoded[s][g]
+                m = GenerationalMessages(original, encoded, received, run=run, generation=g, species=s)
+
+                ml.append(m)
+
+        return ml
 
 def listify(v):
     if type(v) is int:
         return [v]
     return v
+
+class Archive:
+
+    def __init__(self, messages=None, stats={}, configs={}, **kwargs) -> None:
+        self.messages = messages
+
+    def add_run(self, message_archive):
+        pass
+
+    @staticmethod
+    def createArchive(message_archive):
+        pass
 
 class Archive(UserDict):
 
