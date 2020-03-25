@@ -142,6 +142,7 @@ def plot_spectrum(spectra, cmap='rainbow', view=False, vmin=None, vmax=None,
 
     spectra = np.array(spectra).T
     fig, ax = plt.subplots()
+    #FIXME, don't automatically remove one generation. This is a holdover from when I didn't process messages properly.
     p = ax.pcolormesh(spectra[:, :-1], cmap=cmap, vmin=vmin, vmax=vmax)
     fig.colorbar(p, ax=ax)
 
