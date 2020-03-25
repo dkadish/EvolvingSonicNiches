@@ -1,4 +1,6 @@
-from collections import UserDict, UserList
+from collections import UserList
+
+import joblib
 import numpy as np
 
 class Filterable:
@@ -135,6 +137,18 @@ class FilterableList(UserList):
     def count(self):
         return len(self.data)
 
+    @property
+    def runs(self):
+        return list(set(map(lambda i: i.run, self.data)))
+
+    @property
+    def next_run(self):
+        if self.runs:
+            return self.runs[-1] + 1
+        else:
+            return 0
+
+
 class MessageList(FilterableList):
 
     def filter(self, run=None, generation=None, species=None, subspecies=None, original=None):
@@ -145,10 +159,6 @@ class MessageList(FilterableList):
             return self.__class__(sublist).filter(run, generation, species, subspecies)
 
         return super().filter(run, generation, species, subspecies)
-
-    # @property
-    # def original(self):
-    #     return np.concatenate([d.original for d in self.data], axis=0)
 
     def original(self, o):
         return self.filter(original=o)
@@ -188,62 +198,77 @@ def listify(v):
 
 class Archive:
 
-    def __init__(self, messages=None, stats={}, configs={}, **kwargs) -> None:
-        self.messages = messages
+    def __init__(self, messages=[], stats={}, configs={}, **kwargs) -> None:
+        self.messages = MessageList(messages)
 
-    def add_run(self, message_archive):
-        pass
+    def add_run(self, message_list, run_id=None):
+        # if run_id is None:
+        #     run_id = self.messages.next_run
+        #
+        # ml = MessageList.from_message_archive(message_archive, run=run_id)
+
+        self.messages.extend(message_list)
+
+    def save(self, filename):
+        joblib.dump(self, filename)
+
+    def __add__(self, other):
+        raise NotImplementedError('Not Implemented yet.')
+
+    @staticmethod
+    def load(filename):
+        return joblib.load(filename)
 
     @staticmethod
     def createArchive(message_archive):
         pass
 
-class Archive(UserDict):
-
-    def __init__(self, messages={}, stats={}, configs={}, **kwargs) -> None:
-        super().__init__({}, **kwargs)
-
-        self['messages'] = self.Messages(**messages)
-        self['stats'] = self.Stats(**stats)
-        self['configs'] = self.Configs(**configs)
-
-    class Messages(UserDict):
-
-        def __init__(self, original={}, encoded={}, received={}, **kwargs) -> None:
-            super().__init__(dict, **kwargs)
-
-            self['original'] = original
-            self['encoded'] = encoded
-            self['received'] = received
-
-        @property
-        def original(self):
-            return self['original']
-
-        @property
-        def encoded(self):
-            return self['encoded']
-
-        @property
-        def received(self):
-            return self['received']
-
-    class Stats(UserDict):
-
-
-        @property
-        def encoder(self):
-            pass
-
-        @property
-        def decoder(self):
-            pass
-
-    class Configs(UserDict):
-        pass
-
-    @staticmethod
-    def createArchive(config, evaluator_config, encoder_stats, decoder_stats,
-                  message_spectra, received_message_spectra, scores,
-                  generations, noise_channel, noise_level, messages):
-        pass
+# class Archive(UserDict):
+#
+#     def __init__(self, messages={}, stats={}, configs={}, **kwargs) -> None:
+#         super().__init__({}, **kwargs)
+#
+#         self['messages'] = self.Messages(**messages)
+#         self['stats'] = self.Stats(**stats)
+#         self['configs'] = self.Configs(**configs)
+#
+#     class Messages(UserDict):
+#
+#         def __init__(self, original={}, encoded={}, received={}, **kwargs) -> None:
+#             super().__init__(dict, **kwargs)
+#
+#             self['original'] = original
+#             self['encoded'] = encoded
+#             self['received'] = received
+#
+#         @property
+#         def original(self):
+#             return self['original']
+#
+#         @property
+#         def encoded(self):
+#             return self['encoded']
+#
+#         @property
+#         def received(self):
+#             return self['received']
+#
+#     class Stats(UserDict):
+#
+#
+#         @property
+#         def encoder(self):
+#             pass
+#
+#         @property
+#         def decoder(self):
+#             pass
+#
+#     class Configs(UserDict):
+#         pass
+#
+#     @staticmethod
+#     def createArchive(config, evaluator_config, encoder_stats, decoder_stats,
+#                   message_spectra, received_message_spectra, scores,
+#                   generations, noise_channel, noise_level, messages):
+#         pass

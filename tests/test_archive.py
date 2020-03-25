@@ -86,10 +86,6 @@ class TestArchive(unittest.TestCase):
         subspec_1 = messages_list.subspecies(1)
         assert subspec_1.count == 3
 
-        # # Get originals
-        # assert run_1.original.shape[0] == 350*3
-        # assert run_1.original.shape[1] == 3
-
         # Get encoded
         assert gen_1.encoded.shape[0] == 350*4
         assert gen_1.encoded.shape[1] == 9

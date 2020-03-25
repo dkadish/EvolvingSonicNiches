@@ -6,6 +6,8 @@ from __future__ import print_function
 import os
 import sys
 
+from archive import Archive, MessageList
+
 en_path = os.path.abspath(os.path.join(__file__, '..', '..'))
 print(en_path)
 sys.path.append(en_path)
@@ -185,22 +187,36 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
 
     joblib.dump(pickle_data, pickle_file)
 
+    # NEW DATA STORAGE #
+    arc_file = 'data/{}/archive.jbl'.format(dirname)
+    a = Archive()
+    ml = MessageList.from_message_archive(messages_archive)
+    a.add_run(ml)
+    a.save(arc_file)
+
+    return ml
 
 def main(args):
     n = os.cpu_count() - 2
     run_args = [args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel, args.noise_level,
                 args.noise_generation, args.dir]
+    a = Archive()
     if args.multiprocessing:
         with Pool(n) as p:
             print(run_args)
             res = p.starmap(run, [run_args + [i] for i in range(args.runs)])
             p.close()
             p.join()
+            for r in res:
+                a.add_run(r)
     else:
-        for _ in range(args.runs):
-            run(args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel, args.noise_level,
-                args.noise_generation, args.dir)
+        message_archives = []
+        for r in range(args.runs):
+            ma = run(args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel, args.noise_level,
+                args.noise_generation, args.dir, run_id=r)
+            a.add_run(ma)
 
+    a.save(os.path.join(args.dir, 'archive.jbl'))
 
 if __name__ == '__main__':
     import argparse
