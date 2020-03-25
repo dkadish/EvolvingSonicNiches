@@ -172,7 +172,7 @@ class MessageList(FilterableList):
         return np.concatenate([d.received for d in self.data], axis=0)
 
     @staticmethod
-    def from_message_archive(message_archive, run=None):
+    def from_message_archive(message_archive, run):
         species = list(message_archive.originals.keys())
         ml = MessageList()
         for s in species:

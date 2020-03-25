@@ -147,7 +147,7 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
     # NEW DATA STORAGE #
     arc_file = 'data/{}/archive.jbl'.format(dirname)
     a = Archive()
-    ml = MessageList.from_message_archive(messages_archive)
+    ml = MessageList.from_message_archive(messages_archive, run_id)
     a.add_run(ml)
     a.save(arc_file)
 
@@ -239,7 +239,10 @@ def main(args):
                 args.noise_generation, args.dir, run_id=r)
             a.add_run(ma)
 
-    a.save(os.path.join(args.dir, 'archive.jbl'))
+    print(os.path.abspath('.'))
+    dirname = setup_directories(args.dir, run_id=-1)
+    d = 'data/{}/archive.jbl'.format(dirname)
+    a.save(d)
 
 if __name__ == '__main__':
     import argparse
