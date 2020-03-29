@@ -6,6 +6,7 @@ import numpy as np
 from archive import MessageList
 from archive.fitness import Fitness, FitnessList
 from archive.messages import Messages
+from archive.score import Score
 from neat import DefaultGenome, StatisticsReporter
 from stats import Messages
 
@@ -20,10 +21,11 @@ def _generate_random_messages():
 
     return messages
 
+
 def _generate_ordered_messages(run=0, generation=0, species=0, subspecies=0):
     original_set = sorted(list(set(itertools.permutations([0, 0, 0, 1, 1, 1], 3))))[1:]
     original = np.concatenate([np.repeat([o], 50, axis=0) for o in original_set])
-    encoded = np.average(np.mgrid[0:1:350j,0:1:9j], axis=0)
+    encoded = np.average(np.mgrid[0:1:350j, 0:1:9j], axis=0)
     noise = np.zeros(shape=(350, 9))
     noise[:, 4] += 1.0
     received = encoded + noise
@@ -31,6 +33,7 @@ def _generate_ordered_messages(run=0, generation=0, species=0, subspecies=0):
                         run=run, generation=generation, species=species, subspecies=subspecies)
 
     return messages
+
 
 def _generate_message_archive():
     m = Messages(None)
@@ -43,6 +46,7 @@ def _generate_message_archive():
     m.received = rec
 
     return m
+
 
 class TestArchiveMessages(unittest.TestCase):
     def test_generationalMessages(self):
@@ -90,11 +94,11 @@ class TestArchiveMessages(unittest.TestCase):
         assert subspec_1.count == 3
 
         # Get encoded
-        assert gen_1.encoded.shape[0] == 350*4
+        assert gen_1.encoded.shape[0] == 350 * 4
         assert gen_1.encoded.shape[1] == 9
 
         # Get received
-        assert spec_1.received.shape[0] == 350*4
+        assert spec_1.received.shape[0] == 350 * 4
         assert spec_1.received.shape[1] == 9
 
         # Check Main List
@@ -103,12 +107,12 @@ class TestArchiveMessages(unittest.TestCase):
         # Filter by original message
         original_001 = messages_list.original([0, 0, 1])
         assert original_001.count == 9
-        assert original_001.encoded.shape[0] == 50*9
+        assert original_001.encoded.shape[0] == 50 * 9
         assert original_001.encoded.shape[1] == 9
 
         original_001_011 = messages_list.original([[0, 0, 1], [0, 1, 1]])
         assert original_001_011.count == 9
-        assert original_001_011.encoded.shape[0] == 100*9
+        assert original_001_011.encoded.shape[0] == 100 * 9
         assert original_001_011.encoded.shape[1] == 9
 
     def test_messageList_creation(self):
@@ -120,8 +124,6 @@ class TestArchiveMessages(unittest.TestCase):
 
 
 class TestArchiveFitness(unittest.TestCase):
-
-
 
     def setUp(self) -> None:
         super().setUp()
@@ -157,14 +159,14 @@ class TestArchiveFitness(unittest.TestCase):
         sr = StatisticsReporter()
         sr.generation_statistics = [
             {1: dict([(i, v) for i, v in enumerate(range(10))])},
-            {1: dict([(i+10, 2**v) for i, v in enumerate(range(10))])},
-            {1: dict([(i+20, 2*v) for i, v in enumerate(range(5))]),
-                2: dict([(i+25, 4*v) for i, v in enumerate(range(5))])},
-            {1: dict([(i+30, 100/(v+1)) for i, v in enumerate(range(2))]),
-                2: dict([(i+32, 4*v+v) for i, v in enumerate(range(8))])}
+            {1: dict([(i + 10, 2 ** v) for i, v in enumerate(range(10))])},
+            {1: dict([(i + 20, 2 * v) for i, v in enumerate(range(5))]),
+             2: dict([(i + 25, 4 * v) for i, v in enumerate(range(5))])},
+            {1: dict([(i + 30, 100 / (v + 1)) for i, v in enumerate(range(2))]),
+             2: dict([(i + 32, 4 * v + v) for i, v in enumerate(range(8))])}
         ]
 
-        for k, v in [(9,9),(19,512),(29,16),(30,100)]:
+        for k, v in [(9, 9), (19, 512), (29, 16), (30, 100)]:
             g = DefaultGenome(key=k)
             g.fitness = v
             sr.most_fit_genomes.append(g)
@@ -196,25 +198,26 @@ class TestArchiveFitness(unittest.TestCase):
 
     def test_fitnessList(self):
         fitness_list = FitnessList([self._generate_sender(),
-                                     self._generate_sender(fitness=1.0, fittest=True, run=1),
-                                     self._generate_sender(fitness=1.0, fittest=True, generation=1),
-                                     self._generate_sender(species=1),
-                                     self._generate_sender(subspecies=1),
-                                     self._generate_sender(run=1, generation=1),
-                                     self._generate_sender(generation=1, species=1),
-                                     self._generate_sender(species=1, subspecies=1),
-                                     self._generate_sender(fitness=1.0, fittest=True, run=1, generation=1, species=1, subspecies=1),
-                                     self._generate_receiver(),
-                                     self._generate_receiver(fitness=1.0, fittest=True, run=1),
-                                     self._generate_receiver(fitness=1.0, fittest=True, generation=1),
-                                     self._generate_receiver(species=1),
-                                     self._generate_receiver(subspecies=1),
-                                     self._generate_receiver(run=1, generation=1),
-                                     self._generate_receiver(generation=1, species=1),
-                                     self._generate_receiver(species=1, subspecies=1),
-                                     self._generate_receiver(fitness=1.0, fittest=True, run=1, generation=1, species=1,
-                                                           subspecies=1),
-                                     ])
+                                    self._generate_sender(fitness=1.0, fittest=True, run=1),
+                                    self._generate_sender(fitness=1.0, fittest=True, generation=1),
+                                    self._generate_sender(species=1),
+                                    self._generate_sender(subspecies=1),
+                                    self._generate_sender(run=1, generation=1),
+                                    self._generate_sender(generation=1, species=1),
+                                    self._generate_sender(species=1, subspecies=1),
+                                    self._generate_sender(fitness=1.0, fittest=True, run=1, generation=1, species=1,
+                                                          subspecies=1),
+                                    self._generate_receiver(),
+                                    self._generate_receiver(fitness=1.0, fittest=True, run=1),
+                                    self._generate_receiver(fitness=1.0, fittest=True, generation=1),
+                                    self._generate_receiver(species=1),
+                                    self._generate_receiver(subspecies=1),
+                                    self._generate_receiver(run=1, generation=1),
+                                    self._generate_receiver(generation=1, species=1),
+                                    self._generate_receiver(species=1, subspecies=1),
+                                    self._generate_receiver(fitness=1.0, fittest=True, run=1, generation=1, species=1,
+                                                            subspecies=1),
+                                    ])
 
         # Filter by run
         run_1 = fitness_list.run(1)
@@ -282,7 +285,34 @@ class TestArchiveFitness(unittest.TestCase):
         receivers_1 = fitness_list.receivers
         assert receivers_1.count == 40
 
-        assert fittest_1.count == len(fitness_list.generations)*2
+        assert fittest_1.count == len(fitness_list.generations) * 2
+
+
+class TestArchiveScores(unittest.TestCase):
+
+    def _generate_score(self, receiver=0, run=0, generation=0, species=0):
+        score = Score(receiver=0, identity=[0 for _ in range(10)], bit=[0 for _ in range(10)],
+                      total=[0 for _ in range(10)],
+                      run=run, generation=generation, species=species)
+
+        return score
+
+    def _generate_simulation_score_list(self):
+        score = []
+        for generation in range(10):
+            d = {'species': {1: [0, 0, 0, 0, 0], 2: [1, 1, 1, 1, 1]},
+                 'bit': {1: [0, 0, 0, 0, 0], 2: [1, 1, 1, 1, 1]},
+                 'total': {1: [0, 0, 0, 0, 0], 2: [1, 1, 1, 1, 1]}
+                 }
+            score.append(d)
+
+        return score
+
+    def test_score(self):
+        score = self._generate_score()
+
+        assert score.count == 10
+
 
 
 if __name__ == '__main__':
