@@ -3,7 +3,10 @@ import unittest
 
 import numpy as np
 
-from archive import GenerationalMessages, MessageList
+from archive import MessageList
+from archive.fitness import Fitness, FitnessList
+from archive.messages import Messages
+from neat import DefaultGenome, StatisticsReporter
 from stats import Messages
 
 
@@ -13,7 +16,7 @@ def _generate_random_messages():
     noise = np.zeros(shape=(350, 9))
     noise[:, 4] += 1.0
     received = encoded + noise
-    messages = GenerationalMessages(original, encoded, received, run=0, generation=0, species=0, subspecies=0)
+    messages = Messages(original, encoded, received, run=0, generation=0, species=0, subspecies=0)
 
     return messages
 
@@ -24,8 +27,8 @@ def _generate_ordered_messages(run=0, generation=0, species=0, subspecies=0):
     noise = np.zeros(shape=(350, 9))
     noise[:, 4] += 1.0
     received = encoded + noise
-    messages = GenerationalMessages(original, encoded, received,
-                                    run=run, generation=generation, species=species, subspecies=subspecies)
+    messages = Messages(original, encoded, received,
+                        run=run, generation=generation, species=species, subspecies=subspecies)
 
     return messages
 
@@ -41,7 +44,7 @@ def _generate_message_archive():
 
     return m
 
-class TestArchive(unittest.TestCase):
+class TestArchiveMessages(unittest.TestCase):
     def test_generationalMessages(self):
         messages = _generate_random_messages()
         assert messages.count == 350
@@ -114,6 +117,173 @@ class TestArchive(unittest.TestCase):
         print(ml.count)
         assert ml.count == 300
         np.testing.assert_equal(ml.encoded, ml.received)
+
+
+class TestArchiveFitness(unittest.TestCase):
+
+
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.key = itertools.count()
+
+    def _generate_sender(self, fitness=0.0, run=0, generation=0, species=0, subspecies=0,
+                         fittest=False):
+
+        k = next(self.key)
+        if fittest:
+            genome = DefaultGenome(key=k)
+            genome.fitness = fitness
+        else:
+            genome = None
+
+        return Fitness(fitness, is_sender=True, is_fittest=fittest, genome=genome,
+                       run=run, generation=generation, species=species, subspecies=subspecies)
+
+    def _generate_receiver(self, fitness=0.0, run=0, generation=0, species=0, subspecies=0,
+                           fittest=False):
+
+        k = next(self.key)
+        if fittest:
+            genome = DefaultGenome(key=k)
+            genome.fitness = fitness
+        else:
+            genome = None
+
+        return Fitness(fitness, is_sender=False, is_fittest=fittest, genome=genome,
+                       run=run, generation=generation, species=species, subspecies=subspecies)
+
+    def _generate_statistics_reporter(self):
+        sr = StatisticsReporter()
+        sr.generation_statistics = [
+            {1: dict([(i, v) for i, v in enumerate(range(10))])},
+            {1: dict([(i+10, 2**v) for i, v in enumerate(range(10))])},
+            {1: dict([(i+20, 2*v) for i, v in enumerate(range(5))]),
+                2: dict([(i+25, 4*v) for i, v in enumerate(range(5))])},
+            {1: dict([(i+30, 100/(v+1)) for i, v in enumerate(range(2))]),
+                2: dict([(i+32, 4*v+v) for i, v in enumerate(range(8))])}
+        ]
+
+        for k, v in [(9,9),(19,512),(29,16),(30,100)]:
+            g = DefaultGenome(key=k)
+            g.fitness = v
+            sr.most_fit_genomes.append(g)
+
+        return sr
+
+    def test_fitness(self):
+        sender = Fitness(fitness=1.0, is_sender=True)
+        genome = DefaultGenome(key=10)
+        genome.fitness = 2.0
+        sender_fittest = Fitness(fitness=2.0, is_sender=True, is_fittest=True, genome=genome)
+
+        assert sender.is_sender
+        assert not sender.is_receiver
+        assert not sender.is_fittest
+        assert sender_fittest.is_sender
+        assert not sender_fittest.is_receiver
+        assert sender_fittest.is_fittest
+
+        receiver = Fitness(fitness=1.0, is_sender=False)
+        receiver_fittest = Fitness(fitness=2.0, is_sender=False, is_fittest=True, genome=genome)
+
+        assert not receiver.is_sender
+        assert receiver.is_receiver
+        assert not receiver.is_fittest
+        assert not receiver_fittest.is_sender
+        assert receiver_fittest.is_receiver
+        assert receiver_fittest.is_fittest
+
+    def test_fitnessList(self):
+        fitness_list = FitnessList([self._generate_sender(),
+                                     self._generate_sender(fitness=1.0, fittest=True, run=1),
+                                     self._generate_sender(fitness=1.0, fittest=True, generation=1),
+                                     self._generate_sender(species=1),
+                                     self._generate_sender(subspecies=1),
+                                     self._generate_sender(run=1, generation=1),
+                                     self._generate_sender(generation=1, species=1),
+                                     self._generate_sender(species=1, subspecies=1),
+                                     self._generate_sender(fitness=1.0, fittest=True, run=1, generation=1, species=1, subspecies=1),
+                                     self._generate_receiver(),
+                                     self._generate_receiver(fitness=1.0, fittest=True, run=1),
+                                     self._generate_receiver(fitness=1.0, fittest=True, generation=1),
+                                     self._generate_receiver(species=1),
+                                     self._generate_receiver(subspecies=1),
+                                     self._generate_receiver(run=1, generation=1),
+                                     self._generate_receiver(generation=1, species=1),
+                                     self._generate_receiver(species=1, subspecies=1),
+                                     self._generate_receiver(fitness=1.0, fittest=True, run=1, generation=1, species=1,
+                                                           subspecies=1),
+                                     ])
+
+        # Filter by run
+        run_1 = fitness_list.run(1)
+        assert run_1.count == 6
+
+        # Filter with an array
+        run_01 = fitness_list.run([0, 1])
+        assert run_01.count == 18
+
+        # Filter by generation
+        gen_1 = fitness_list.generation(1)
+        assert gen_1.count == 8
+
+        # Filter by species
+        spec_1 = fitness_list.species(1)
+        assert spec_1.count == 8
+
+        # Filter by subspecies
+        subspec_1 = fitness_list.subspecies(1)
+        assert subspec_1.count == 6
+
+        # Filter by fittest
+        fittest_1 = fitness_list.fittest
+        assert fittest_1.count == 6
+
+        # Filter by senders
+        senders_1 = fitness_list.senders
+        assert senders_1.count == 9
+
+        # Filter by receivers
+        receivers_1 = fitness_list.receivers
+        assert receivers_1.count == 9
+
+    def test_fitnessList_creation(self):
+        sender_sr = self._generate_statistics_reporter()
+        receiver_sr = self._generate_statistics_reporter()
+
+        fitness_list = FitnessList.from_statistics_reporters(senders=sender_sr, receivers=receiver_sr, run=0, species=0)
+
+        # Filter by run
+        run_0 = fitness_list.run(0)
+        assert run_0.count == 80
+
+        # Filter by generation
+        gen_1 = fitness_list.generation(1)
+        assert gen_1.count == 20
+
+        # Filter by species
+        spec_0 = fitness_list.species(0)
+        assert spec_0.count == 80
+
+        # Filter by subspecies
+        subspec_1 = fitness_list.subspecies(1)
+        assert subspec_1.count == 54
+
+        # Filter by fittest
+        fittest_1 = fitness_list.fittest
+        assert fittest_1.count == 8
+
+        # Filter by senders
+        senders_1 = fitness_list.senders
+        assert senders_1.count == 40
+
+        # Filter by receivers
+        receivers_1 = fitness_list.receivers
+        assert receivers_1.count == 40
+
+        assert fittest_1.count == len(fitness_list.generations)*2
+
 
 if __name__ == '__main__':
     unittest.main()
