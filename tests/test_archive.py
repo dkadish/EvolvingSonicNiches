@@ -337,6 +337,5 @@ class TestArchiveScores(unittest.TestCase):
         np.testing.assert_almost_equal(r2_g4[0].total, 0.6)
 
 
-
 if __name__ == '__main__':
     unittest.main()
