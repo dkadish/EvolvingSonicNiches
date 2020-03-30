@@ -18,7 +18,8 @@ logger = logging.getLogger('archive.score')
 
 class Score(Filterable):
 
-    def __init__(self, receiver, identity, bit, total, run=None, generation=None, species=None, subspecies=None):
+    def __init__(self, receiver, identity: list, bit: list, total: list, run=None, generation=None, species=None,
+                 subspecies=None):
         super().__init__(run, generation, species, subspecies)
 
         if subspecies is not None:
@@ -26,9 +27,21 @@ class Score(Filterable):
 
         self.receiver = receiver
 
-        self.identity = identity
-        self.bit = bit
-        self.total = total
+        self._raw_identity = identity
+        self._raw_bit = bit
+        self._raw_total = total
+
+    @property
+    def identity(self):
+        return np.average(self._raw_identity)
+
+    @property
+    def bit(self):
+        return np.average(self._raw_bit)
+
+    @property
+    def total(self):
+        return np.average(self._raw_total)
 
     @property
     def count(self):
@@ -37,22 +50,22 @@ class Score(Filterable):
 
         :return:
         """
-        assert len(self.identity) == len(self.bit) == len(self.total)
+        assert len(self._raw_identity) == len(self._raw_bit) == len(self._raw_total)
 
-        return len(self.identity)
+        return len(self._raw_identity)
 
 
 class ScoreList(FilterableList):
 
-    def filter(self, genome=None, run=None, generation=None, species=None, subspecies=None):
+    def filter(self, receiver=None, run=None, generation=None, species=None, subspecies=None):
 
         if subspecies is not None:
             logger.warning('There should not be a subspecies associated with scores.')
 
         sublist = self.data
 
-        if genome is not None:
-            sublist = filter(lambda d: d.genome in listify(genome), self.data)
+        if receiver is not None:
+            sublist = filter(lambda d: d.receiver in listify(receiver), self.data)
             return self.__class__(sublist).filter(run=run, generation=generation, species=species,
                                                   subspecies=subspecies)
 
@@ -60,27 +73,27 @@ class ScoreList(FilterableList):
 
     @property
     def identity(self):
-        return np.concatenate([d.identity for d in self.data], axis=0)
+        return np.array([d.identity for d in self.data])
 
     @property
     def bit(self):
-        return np.concatenate([d.bit for d in self.data], axis=0)
+        return np.array([d.bit for d in self.data])
 
     @property
     def total(self):
-        return np.concatenate([d.total for d in self.data], axis=0)
+        return np.array([d.total for d in self.data])
 
     @staticmethod
     def from_score_list(scores, run: int, species: int):
         score_list = []
 
         for generation, d in enumerate(scores):
-            identify = d['species']
+            identity = d['species']
             bit = d['bit']
             total = d['total']
 
-            for r in identify:
-                score = Score(receiver=r, identify=identify[r], bit=bit[r], total=total[r],
+            for r in identity:
+                score = Score(receiver=r, identity=identity[r], bit=bit[r], total=total[r],
                               run=run, generation=generation, species=species)
                 score_list.append(score)
 

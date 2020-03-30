@@ -6,7 +6,7 @@ import numpy as np
 from archive import MessageList
 from archive.fitness import Fitness, FitnessList
 from archive.messages import Messages
-from archive.score import Score
+from archive.score import Score, ScoreList
 from neat import DefaultGenome, StatisticsReporter
 from stats import Messages
 
@@ -291,8 +291,8 @@ class TestArchiveFitness(unittest.TestCase):
 class TestArchiveScores(unittest.TestCase):
 
     def _generate_score(self, receiver=0, run=0, generation=0, species=0):
-        score = Score(receiver=0, identity=[0 for _ in range(10)], bit=[0 for _ in range(10)],
-                      total=[0 for _ in range(10)],
+        score = Score(receiver=0, identity=[1.0 - (0.1 * i) for i in range(10)], bit=[0.1 * i for i in range(10)],
+                      total=[0 for _ in range(9)] + [1],
                       run=run, generation=generation, species=species)
 
         return score
@@ -300,9 +300,9 @@ class TestArchiveScores(unittest.TestCase):
     def _generate_simulation_score_list(self):
         score = []
         for generation in range(10):
-            d = {'species': {1: [0, 0, 0, 0, 0], 2: [1, 1, 1, 1, 1]},
-                 'bit': {1: [0, 0, 0, 0, 0], 2: [1, 1, 1, 1, 1]},
-                 'total': {1: [0, 0, 0, 0, 0], 2: [1, 1, 1, 1, 1]}
+            d = {'species': {1: [0, 0, 0, 1, 1], 2: [1, 1, 0, 1, 1]},
+                 'bit': {1: [0, 0.2, 0.4, 0.6, 0.8], 2: [1, 0.8, 0.6, 0.4, 0.2]},
+                 'total': {1: [0.1, 0.2, 0.3, 0.4, 0.5], 2: [0.4, 0.5, 0.6, 0.7, 0.8]}
                  }
             score.append(d)
 
@@ -312,6 +312,29 @@ class TestArchiveScores(unittest.TestCase):
         score = self._generate_score()
 
         assert score.count == 10
+        np.testing.assert_almost_equal(score.identity, 0.55)
+        np.testing.assert_almost_equal(score.bit, 0.45)
+        np.testing.assert_almost_equal(score.total, 0.1)
+
+    def test_scoreList(self):
+        score_list = ScoreList.from_score_list(self._generate_simulation_score_list(), run=0, species=0)
+
+        assert score_list.count == 20
+
+        receiver_1 = score_list.filter(receiver=1)
+        assert receiver_1.count == 10
+
+        generation_3 = score_list.filter(generation=3)
+        assert generation_3.count == 2
+        np.testing.assert_almost_equal(np.average(generation_3.identity), 0.6)
+        np.testing.assert_almost_equal(np.average(generation_3.bit), 0.5)
+        np.testing.assert_almost_equal(np.average(generation_3.total), 0.45)
+
+        r2_g4 = score_list.filter(generation=4, receiver=2)
+        assert r2_g4.count == 1
+        np.testing.assert_almost_equal(r2_g4[0].identity, 0.8)
+        np.testing.assert_almost_equal(r2_g4[0].bit, 0.6)
+        np.testing.assert_almost_equal(r2_g4[0].total, 0.6)
 
 
 
