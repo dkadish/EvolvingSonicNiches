@@ -1,9 +1,9 @@
 from __future__ import print_function
 
+import logging
 import os
 import sys
-from archive import Archive, MessageList
-
+from archive import Archive, MessageList, FitnessList
 
 from datetime import datetime
 from multiprocessing.pool import Pool
@@ -12,6 +12,7 @@ from threading import Thread
 import joblib
 import numpy as np
 import neat
+from archive.score import ScoreList
 
 EN_PATH = os.path.abspath(os.path.join(__file__, '..', '..'))
 print(EN_PATH)
@@ -21,7 +22,8 @@ from genome import DefaultGenome
 from parallel import MultiQueue
 from species import Species
 from stats import Spectrum, Cohesion, Loudness, MessageSpectrum, Messages
-from visualize.plot import plot_message_spectrum, plot_scores, plot_stats, plot_received_message_spectrum
+from visualize.plot import plot_message_spectrum, plot_scores, plot_stats, plot_received_message_spectrum, \
+    get_decoding_scores_list
 from visualize.print import print_best
 from noise import Noise, GenerationStepNoise
 
@@ -41,6 +43,7 @@ N_MESSAGES = 10  # Number of messages to test on each individual in each evoluti
 N = 300
 N_RUNS = 5
 
+logger = logging.getLogger('run')
 
 def load_run_from_directory(directory):
     pass
@@ -106,6 +109,7 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
     }
 
     ####### Plot and Pickle #########
+    species_scores = {}
     for i, s in enumerate(species):
         node_names_dec, node_names_enc = print_best(config_dec, config_enc, i, s)
 
@@ -127,7 +131,9 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
 
         # plot_cohesion(cohesion_stats, d, dirname, i, loudness_stats, s, view=view)
 
-        pickle_data['scores'][i] = plot_scores(d, dirname, i, s)
+        scores = get_decoding_scores_list(s)
+        species_scores[s.species_id] = scores
+        pickle_data['scores'][i] = plot_scores(d, dirname, i, scores)
 
         pickle_data['encoder_stats'][s.species_id] = s.encoder.stats
         pickle_data['decoder_stats'][s.species_id] = s.decoder.stats
@@ -148,10 +154,17 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
     arc_file = 'data/{}/archive.jbl'.format(dirname)
     a = Archive()
     ml = MessageList.from_message_archive(messages_archive, run_id)
-    a.add_run(ml)
+
+    fl = FitnessList()
+    sl = ScoreList()
+    for s in species:
+        fl.extend(FitnessList.from_statistics_reporters(s.encoder.stats, s.decoder.stats, run=run_id, species=s.species_id))
+        sl.extend(ScoreList.from_score_list(species_scores[s.species_id], run=run_id, species=s.species_id))
+
+    a.add_run(ml, fl, sl)
     a.save(arc_file)
 
-    return ml
+    return ml, fl, sl
 
 def setup_stats(messages):
     spectrum_stats = Spectrum(messages.add())
@@ -213,7 +226,7 @@ def do_evolution(generations, species, stats_mods):
         for s in species:
             s.join()
     for s in species:
-        s.decoding_scores.put(False)
+        s.decoding_scores.put(None)
     for s, t in zip(stats_mods, threads):
         s.done()
         t.join()
@@ -231,18 +244,20 @@ def main(args):
             p.close()
             p.join()
             for r in res:
-                a.add_run(r)
+                a.add_run(*r)
     else:
         message_archives = []
         for r in range(args.runs):
-            ma = run(args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel, args.noise_level,
+            ml, fl, sl = run(args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel, args.noise_level,
                 args.noise_generation, args.dir, run_id=r)
-            a.add_run(ma)
+            a.add_run(ml, fl, sl)
 
     print(os.path.abspath('.'))
     dirname = setup_directories(args.dir, run_id=-1)
     d = 'data/{}/archive.jbl'.format(dirname)
     a.save(d)
+    logger.info('Saving log file to {}'.format(d))
+    print(os.path.abspath(d))
 
 if __name__ == '__main__':
     import argparse

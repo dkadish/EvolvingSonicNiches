@@ -10,17 +10,30 @@ from . import draw_net, plot_cohesion as pc, plot_spectrum as pspec, plot_messag
 
 VIEW = False
 
+def get_decoding_scores_list(species):
+    ds = []
 
-def plot_scores(now, dirname, species_id, species, view=VIEW):
+    while True:
+        scores = species.decoding_scores.get()
+        if scores is None:
+            break
+        ds.append(scores)
+
+    return ds
+
+
+
+def plot_scores(now, dirname, species_id, scores, view=VIEW):
     # Visualize the scores
-    decoding_scores = species.decoding_scores.get()
     species_gen_avg = []
     bits_gen_avg = []
     total_gen_avg = []
     species_gen_std = []
     bits_gen_std = []
     total_gen_std = []
-    while decoding_scores is not False:
+    #TODO: Recode queues with None object as in https://bryceboe.com/2011/01/28/the-python-multiprocessing-queue-and-large-objects/
+    for decoding_scores in scores:
+
         # The decoding scores for an individual over an entire generation
         dc_species = decoding_scores['species']
         dc_bit = decoding_scores['bit']
@@ -40,8 +53,6 @@ def plot_scores(now, dirname, species_id, species, view=VIEW):
         bits_gen_std.append(np.nanstd(bits_avg))
         total_gen_avg.append(np.nanmean(total_avg))
         total_gen_std.append(np.nanstd(total_avg))
-
-        decoding_scores = species.decoding_scores.get()
 
     ps(np.array(species_gen_avg), np.array(species_gen_std),
        np.array(bits_gen_avg), np.array(bits_gen_std),

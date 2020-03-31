@@ -4,6 +4,7 @@ import neat
 from archive.filterable import Filterable
 from archive.fitness import FitnessList
 from archive.messages import MessageList
+from archive.score import ScoreList
 
 
 class Spectrum(Filterable):
@@ -41,11 +42,12 @@ class Config:
 
 class Archive:
 
-    def __init__(self, messages=[], fitnesses=[], configs:Config=None, **kwargs) -> None:
+    def __init__(self, messages=[], fitnesses=[], scores=[], configs:Config=None, **kwargs) -> None:
         self.messages = MessageList(messages)
         self.fitness = FitnessList(fitnesses)
+        self.scores = ScoreList(scores)
 
-    def add_run(self, message_list, fitness_list, run_id=None):
+    def add_run(self, message_list, fitness_list, score_list, run_id=None):
         # if run_id is None:
         #     run_id = self.messages.next_run
         #
@@ -53,6 +55,7 @@ class Archive:
 
         self.messages.extend(message_list)
         self.fitness.extend(fitness_list)
+        self.scores.extend(score_list)
 
     def save(self, filename):
         joblib.dump(self, filename)

@@ -3,57 +3,79 @@ import unittest
 
 import numpy as np
 
-from archive import MessageList
+from archive import MessageList, Filterable
+from archive.filterable import FilterableList
 from archive.fitness import Fitness, FitnessList
 from archive.messages import Messages
 from archive.score import Score, ScoreList
 from neat import DefaultGenome, StatisticsReporter
-from stats import Messages
+import stats
 
+class TestArchiveFilterableList(unittest.TestCase):
 
-def _generate_random_messages():
-    original = np.random.choice([0, 1], size=(350, 3))
-    encoded = np.random.random(size=(350, 9))
-    noise = np.zeros(shape=(350, 9))
-    noise[:, 4] += 1.0
-    received = encoded + noise
-    messages = Messages(original, encoded, received, run=0, generation=0, species=0, subspecies=0)
+    def test_filterableList_addition(self):
+        permutations = sorted(list(set(itertools.permutations([0, 0, 0, 0, 1, 1, 1, 1], 4))))[1:]
+        fl = FilterableList([Filterable(run=r, generation=g, species=s, subspecies=ss) for r, g, s, ss in permutations])
+        permutations2 = sorted(list(set(itertools.permutations([0, 0, 1, 1, 2, 2, 3, 3], 4))))[1:]
+        fl2 = FilterableList([Filterable(run=r, generation=g, species=s, subspecies=ss) for r, g, s, ss in permutations2])
+        fl3 = fl+fl2
 
-    return messages
+        fl4 = FilterableList(fl.data)
+        assert fl4.count == fl.count
+        fl4.extend(fl2)
 
+        assert fl.count == 15
+        assert fl2.count == 203
+        assert fl3.count == 218
+        assert fl4.count == 218
 
-def _generate_ordered_messages(run=0, generation=0, species=0, subspecies=0):
-    original_set = sorted(list(set(itertools.permutations([0, 0, 0, 1, 1, 1], 3))))[1:]
-    original = np.concatenate([np.repeat([o], 50, axis=0) for o in original_set])
-    encoded = np.average(np.mgrid[0:1:350j, 0:1:9j], axis=0)
-    noise = np.zeros(shape=(350, 9))
-    noise[:, 4] += 1.0
-    received = encoded + noise
-    messages = Messages(original, encoded, received,
-                        run=run, generation=generation, species=species, subspecies=subspecies)
+        assert fl3.filter(run=1).count == 59
+        assert fl3.filter(generation=2).count == 51
 
-    return messages
-
-
-def _generate_message_archive():
-    m = Messages(None)
-
-    orig = {1: [np.zeros(shape=(350, 3)) for _ in range(300)] + [[]]}
-    enc = {1: [np.zeros(shape=(350, 9)) for _ in range(300)]}
-    rec = {}
-    m.originals = orig
-    m.encoded = enc
-    m.received = rec
-
-    return m
-
+        assert fl4.filter(run=1).count == 59
+        assert fl4.filter(generation=2).count == 51
 
 class TestArchiveMessages(unittest.TestCase):
+
+    def _generate_random_messages(self):
+        original = np.random.choice([0, 1], size=(350, 3))
+        encoded = np.random.random(size=(350, 9))
+        noise = np.zeros(shape=(350, 9))
+        noise[:, 4] += 1.0
+        received = encoded + noise
+        messages = Messages(original, encoded, received, run=0, generation=0, species=0, subspecies=0)
+
+        return messages
+
+    def _generate_ordered_messages(self, run=0, generation=0, species=0, subspecies=0):
+        original_set = sorted(list(set(itertools.permutations([0, 0, 0, 1, 1, 1], 3))))[1:]
+        original = np.concatenate([np.repeat([o], 50, axis=0) for o in original_set])
+        encoded = np.average(np.mgrid[0:1:350j, 0:1:9j], axis=0)
+        noise = np.zeros(shape=(350, 9))
+        noise[:, 4] += 1.0
+        received = encoded + noise
+        messages = Messages(original, encoded, received, run=run, generation=generation, species=species,
+                            subspecies=subspecies)
+
+        return messages
+
+    def _generate_message_archive(self):
+        m = stats.Messages(None)
+
+        orig = {1: [np.zeros(shape=(350, 3)) for _ in range(300)] + [[]]}
+        enc = {1: [np.zeros(shape=(350, 9)) for _ in range(300)]}
+        rec = {}
+        m.originals = orig
+        m.encoded = enc
+        m.received = rec
+
+        return m
+
     def test_generationalMessages(self):
-        messages = _generate_random_messages()
+        messages = self._generate_random_messages()
         assert messages.count == 350
 
-        messages = _generate_ordered_messages()
+        messages = self._generate_ordered_messages()
 
         messages_101 = messages.filter([1, 0, 0])
         assert messages_101.count == 50
@@ -62,15 +84,15 @@ class TestArchiveMessages(unittest.TestCase):
         assert messages_100_101.count == 100
 
     def test_messageList(self):
-        messages_list = MessageList([_generate_ordered_messages(),
-                                     _generate_ordered_messages(run=1),
-                                     _generate_ordered_messages(generation=1),
-                                     _generate_ordered_messages(species=1),
-                                     _generate_ordered_messages(subspecies=1),
-                                     _generate_ordered_messages(run=1, generation=1),
-                                     _generate_ordered_messages(generation=1, species=1),
-                                     _generate_ordered_messages(species=1, subspecies=1),
-                                     _generate_ordered_messages(run=1, generation=1, species=1, subspecies=1),
+        messages_list = MessageList([self._generate_ordered_messages(),
+                                     self._generate_ordered_messages(run=1),
+                                     self._generate_ordered_messages(generation=1),
+                                     self._generate_ordered_messages(species=1),
+                                     self._generate_ordered_messages(subspecies=1),
+                                     self._generate_ordered_messages(run=1, generation=1),
+                                     self._generate_ordered_messages(generation=1, species=1),
+                                     self._generate_ordered_messages(species=1, subspecies=1),
+                                     self._generate_ordered_messages(run=1, generation=1, species=1, subspecies=1),
                                      ])
 
         # Filter by run
@@ -116,9 +138,8 @@ class TestArchiveMessages(unittest.TestCase):
         assert original_001_011.encoded.shape[1] == 9
 
     def test_messageList_creation(self):
-        archive = _generate_message_archive()
-        ml = MessageList.from_message_archive(archive)
-        print(ml.count)
+        archive = self._generate_message_archive()
+        ml = MessageList.from_message_archive(archive, run=0)
         assert ml.count == 300
         np.testing.assert_equal(ml.encoded, ml.received)
 
