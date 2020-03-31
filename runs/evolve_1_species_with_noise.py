@@ -256,7 +256,7 @@ def main(args):
 
     print(os.path.abspath('.'))
     dirname = setup_directories(args.dir, run_id=-1)
-    d = 'data/{}/archive.jbl'.format(dirname)
+    d = 'data/{}/archive.jbl.xz'.format(dirname)
     a.save(d)
     logger.info('Saving log file to {}'.format(d))
     print(os.path.abspath(d))
