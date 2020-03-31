@@ -3,7 +3,6 @@ from __future__ import print_function
 import logging
 import os
 import sys
-from archive import Archive, MessageList, FitnessList
 
 from datetime import datetime
 from multiprocessing.pool import Pool
@@ -12,7 +11,6 @@ from threading import Thread
 import joblib
 import numpy as np
 import neat
-from archive.score import ScoreList
 
 EN_PATH = os.path.abspath(os.path.join(__file__, '..', '..'))
 print(EN_PATH)
@@ -26,6 +24,10 @@ from visualize.plot import plot_message_spectrum, plot_scores, plot_stats, plot_
     get_decoding_scores_list
 from visualize.print import print_best
 from noise import Noise, GenerationStepNoise
+from archive import Archive
+from archive.messages import MessageList
+from archive.fitness import FitnessList
+from archive.score import ScoreList
 
 np.set_printoptions(precision=3)
 
@@ -68,7 +70,7 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
         },
         'Evaluation': {
             'correct_factor': 0.1,
-            'loudness_penalty': 0.1,
+            'loudness_penalty': 0.2,
             'no_species_id_score': True,
         }
     }
