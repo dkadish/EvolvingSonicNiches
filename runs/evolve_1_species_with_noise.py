@@ -6,10 +6,12 @@ import sys
 
 from datetime import datetime
 from multiprocessing.pool import Pool
+from queue import Empty
 from string import ascii_uppercase
 from threading import Thread
 import joblib
 import numpy as np
+import pandas as pd
 import neat
 
 EN_PATH = os.path.abspath(os.path.join(__file__, '..', '..'))
@@ -20,8 +22,8 @@ from genome import DefaultGenome
 from parallel import MultiQueue
 from species import Species
 from stats import Spectrum, Cohesion, Loudness, MessageSpectrum, Messages
-from visualize.plot import plot_message_spectrum, plot_scores, plot_stats, plot_received_message_spectrum, \
-    get_decoding_scores_list
+from visualize.plot import plot_message_spectrum, plot_stats, plot_received_message_spectrum#, \
+    # get_decoding_scores_list, plot_scores
 from visualize.print import print_best
 from noise import Noise, GenerationStepNoise
 from archive import Archive
@@ -45,7 +47,10 @@ N_MESSAGES = 10  # Number of messages to test on each individual in each evoluti
 N = 300
 N_RUNS = 5
 
-logger = logging.getLogger('run')
+logging.basicConfig(level=logging.DEBUG)
+f = logging.Filter(name='evolvingniches')
+logger = logging.getLogger('evolvingniches.run')
+logger.addFilter(f)
 
 def load_run_from_directory(directory):
     pass
@@ -76,7 +81,7 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
     }
 
     messages = MultiQueue()
-    species = [Species(config_enc, config_dec, messages, pairwise=False, checkpoint_dir='data/{}'.format(dirname),
+    species = [Species(config_enc, config_dec, messages, run=run_id, pairwise=False, checkpoint_dir='data/{}'.format(dirname),
                        evaluator_config=eval_config) for _ in range(1)]
 
     # Set noise parameters
@@ -85,7 +90,7 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
     # Start statistics modules
     message_spectrum_stats, messages_archive, spectrum_stats, stats_mods = setup_stats(messages)
 
-    do_evolution(generations, species, stats_mods)
+    dataframe_list = do_evolution(generations, species, stats_mods)
 
     ####################################################################################################################
 
@@ -133,9 +138,9 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
 
         # plot_cohesion(cohesion_stats, d, dirname, i, loudness_stats, s, view=view)
 
-        scores = get_decoding_scores_list(s)
-        species_scores[s.species_id] = scores
-        pickle_data['scores'][i] = plot_scores(d, dirname, i, scores)
+        # scores = get_decoding_scores_list(s)
+        # species_scores[s.species_id] = scores
+        # pickle_data['scores'][i] = plot_scores(d, dirname, i, scores)
 
         pickle_data['encoder_stats'][s.species_id] = s.encoder.stats
         pickle_data['decoder_stats'][s.species_id] = s.decoder.stats
@@ -152,7 +157,39 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
 
     joblib.dump(pickle_data, pickle_file)
 
+    # DataFrame Data Storage #
+    print('Creating DataFrame...')
+    columns = [
+        'id',
+        'run',
+        'generation',
+        'species',
+        'sender',
+        'receiver']
+    columns.extend(['original_{}'.format(i) for i in range(3)])
+    columns.extend(['encoded_{}'.format(i) for i in range(9)])
+    columns.extend(['received_{}'.format(i) for i in range(9)])
+    columns.extend([
+        'score_identity',
+        'score_bit',
+        'score_total'
+    ])
+
+    # df_list = []
+    # while True:
+    #     row = species.dataframe_list.get()
+    #     if row is None:
+    #         break
+    #     df_list.append(row)
+
+    df = pd.DataFrame(dataframe_list, columns=columns)
+    df.set_index('id')
+    print('Saving DataFrame...')
+    df_file = 'data/{}/dataframe_archive.xz'.format(dirname)
+    df.to_pickle(df_file)
+
     # NEW DATA STORAGE #
+    print('Creating Python Class Archive...')
     arc_file = 'data/{}/archive.jbl'.format(dirname)
     a = Archive()
     ml = MessageList.from_message_archive(messages_archive, run_id)
@@ -160,10 +197,11 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
     fl = FitnessList()
     sl = ScoreList()
     for s in species:
-        sl.extend(ScoreList.from_score_list(species_scores[s.species_id], run=run_id, species=s.species_id))
+        # sl.extend(ScoreList.from_score_list(species_scores[s.species_id], run=run_id, species=s.species_id))
         fl.extend(FitnessList.from_statistics_reporters(s.encoder.stats, s.decoder.stats, run=run_id, species=s.species_id))
 
     a.add_run(ml, fl, sl)
+    print('Saving archive...')
     a.save(arc_file)
 
     return ml, fl, sl
@@ -221,18 +259,31 @@ def do_evolution(generations, species, stats_mods):
         s.start()
     # Run for up to 300 generations.
     k = 0
+    dataframe_list = []
     while generations < 0 or k < generations:
+        logger.debug('Starting Generation')
         k += 1
         for s in species:
             s.start()
-        for s in species:
-            s.join()
+        logger.debug('Waiting for species to finish.')
+        while np.any([s.is_alive() for s in species]):
+            for s in species:
+                while True:
+                    try:
+                        row = s.dataframe_list.get(timeout=0.1)
+                    except Empty:
+                        break
+                    dataframe_list.append(row)
+                logger.debug('Trying to join')
+                s.join(0.1)
+        logger.debug('Finished species {}'.format(s.species_id))
     for s in species:
-        s.decoding_scores.put(False)
+        s.dataframe_list.put(None)
     for s, t in zip(stats_mods, threads):
         s.done()
         t.join()
 
+    return dataframe_list
 
 def main(args):
     n = os.cpu_count() - 2
@@ -293,6 +344,8 @@ if __name__ == '__main__':
                         help='use multiprocessing for the run')
     parser.add_argument('--resume', type=str, default=None, help='resume run from folder')
 
+
+    logger.debug('Parsing Args.')
     args = parser.parse_args()
     print(args)
     main(args)

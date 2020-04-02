@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import copy
+import logging
 import warnings
 from functools import reduce
 from math import inf
@@ -10,6 +11,7 @@ import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 
+plt.set_loglevel(logging.WARNING)
 
 def message_sort_key(message):
     if type(message) == str:

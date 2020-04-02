@@ -6,6 +6,7 @@ from multiprocessing import Queue
 from random import choice
 
 import numpy as np
+import pandas as pd
 
 import neat
 from messaging import Message, MessageType
@@ -54,7 +55,7 @@ def correct_multiplier(fitness, original, decode, correct_factor):
 class BaseEvaluator:
 
     def __init__(self, messages: Queue, scores: Queue, genomes: Queue,
-                 decoding_scores: Queue, species_id=0, config=default_config):
+                 dataframe_list: Queue, species_id=0, run_id=0, config=default_config):
         self.messages = messages
 
         self.scores = scores
@@ -62,7 +63,7 @@ class BaseEvaluator:
 
         self.process = None
 
-        self.decoding_scores = decoding_scores
+        self.dataframe_list = dataframe_list
 
         self.species_id = species_id  # For identifying members of the same species in multispecies processes.
 
@@ -89,10 +90,10 @@ class BaseEvaluator:
 class EncoderEvaluator(BaseEvaluator):
 
     def __init__(self, messages: Queue, scores: Queue, genomes: Queue,
-                 decoding_scores: Queue, species_id: int = 0, config=default_config,
+                 dataframe_list: Queue, species_id: int = 0, run_id: int = 0, config=default_config,
                  noise: Noise = None):
         super(EncoderEvaluator, self).__init__(messages, scores, genomes,
-                                               decoding_scores, species_id, config)
+                                               dataframe_list, species_id, run_id, config)
 
         self._randomized = False
 
@@ -130,7 +131,8 @@ class EncoderEvaluator(BaseEvaluator):
             for original_message in messages[i]:
                 encoded_message = net.activate(original_message)
                 received_message = self.add_noise(encoded_message)
-                self.messages.put(Message.Encoded(self.species_id, genome_id, original_message, encoded_message, received_message))
+                self.messages.put(
+                    Message.Encoded(self.species_id, genome_id, original_message, encoded_message, received_message))
 
         # Send Finished Message
         self.messages.put(Message.Generation(self.species_id))
@@ -173,15 +175,25 @@ class EncoderEvaluator(BaseEvaluator):
             'Overwriting messages in noisy channels with noise. Should not be used in regular operation. For debugging purposes only.')
         self._noise_overwrites_signal = True
 
+
 class DecoderEvaluator(BaseEvaluator):
 
-    def __init__(self, messages: Queue, scores: Queue, genomes: Queue, decoding_scores: Queue, species_id: int = 0,
-                 config=default_config):
-        super().__init__(messages, scores, genomes, decoding_scores, species_id, config)
+    def __init__(self, messages: Queue, scores: Queue, genomes: Queue, dataframe_list: Queue, species_id: int = 0,
+                 run_id: int = 0, config=default_config):
+        super().__init__(messages, scores, genomes, dataframe_list, species_id, run_id, config)
 
         self._no_species_id_score = self.config['Evaluation'].getboolean('no_species_id_score')
         self._loudness_penalty = self.config['Evaluation'].getfloat('loudness_penalty')
         self._correct_factor = self.config['Evaluation'].getfloat('correct_factor')
+
+        self.generation = {}
+        self.message_id = 0
+        self.run_id = run_id
+
+    @property
+    def next_message_id(self):
+        self.message_id += 1
+        return self.message_id
 
     def evaluator(self, genomes, config):
         super(DecoderEvaluator, self).evaluator(genomes, config)
@@ -192,6 +204,8 @@ class DecoderEvaluator(BaseEvaluator):
         total_scores = {}
         species_ids = []
         false_count = 0
+
+        dfl = []
 
         # Wait for encoded messages from encoders
         message = self.messages.get()  # Assume the first one isn't false
@@ -205,6 +219,9 @@ class DecoderEvaluator(BaseEvaluator):
             # Update available species IDs, test for completeness
             if enc_species_id not in species_ids:
                 species_ids.append(enc_species_id)
+
+            if enc_species_id not in self.generation:
+                self.generation[enc_species_id] = 0
 
             # Make sure the encoder is already listed in the fitness dict. If not, add it.
             if enc_genome_id not in encoder_fitness and enc_species_id == self.species_id:
@@ -246,13 +263,19 @@ class DecoderEvaluator(BaseEvaluator):
                     bit_scores[genome_id].append(bit_score)
                     total_scores[genome_id].append(total_score)
 
+                df_row = self._make_dataframe_row(enc_species_id, enc_genome_id, original_message, encoded_message,
+                                                  received_message, species_score, bit_score, total_score)
+                dfl.append(df_row)
+                self.dataframe_list.put(df_row)
+
             message = self.messages.get()
 
             do_break = False
             while message.type == MessageType.GENERATION:
+                self.generation[message.species_id] += 1
                 false_count += 1
                 if false_count == len(species_ids):
-                    print('Stopped with %i False values' % false_count)
+                    print('Stopped with %i False values (meaning the number of species end messages).' % false_count)
                     print(species_ids)
                     do_break = True
                     break
@@ -264,7 +287,24 @@ class DecoderEvaluator(BaseEvaluator):
 
         self.genomes.put(dict(genomes))
 
-        self.decoding_scores.put({'species': species_scores, 'bit': bit_scores, 'total': total_scores})
+        # df = pd.DataFrame(dfl)
+        # print(df)
+        # print(df.info())
+
+        # self.dataframe_list.put({'species': species_scores, 'bit': bit_scores, 'total': total_scores})
+
+    def _make_dataframe_row(self, species, sender, original, encoded, received, score_identity, score_bit, score_total):
+
+        message_id = self.next_message_id
+        if species not in self.generation:
+            self.generation[species] = 0
+        generation = self.generation[species]
+        receiver = self.species_id
+        run = self.run_id
+
+        row = [message_id, run, generation, species, sender, receiver] + list(original) + list(encoded) + list(received) + \
+              [score_identity, score_bit, score_total]
+        return row
 
     @staticmethod
     def sender_fitness(original, encode, decode, sender_species, receiver_species,
@@ -529,7 +569,7 @@ class PairwiseDecoderEvaluator(BaseEvaluator):
 
         self.genomes.put(genomes)
 
-        self.decoding_scores.put({'species': species_scores, 'bit': bit_scores, 'total': total_scores})
+        self.dataframe_list.put({'species': species_scores, 'bit': bit_scores, 'total': total_scores})
 
 
 if __name__ == "__main__":

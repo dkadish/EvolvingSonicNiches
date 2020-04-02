@@ -510,3 +510,46 @@ class Messages(EncodedStatsBase):
         for s in self.received:
             if len(self.received[s][-1]) == 0:
                 del self.received[s][-1]
+
+
+class DFMessages(EncodedStatsBase):
+
+    def __init__(self, messages: Queue):
+        super(Messages, self).__init__(messages)
+
+        self.df_list = []
+        self.species_generations = {}
+
+    def handle_message(self, message: Message):
+        super(Messages, self).handle_message(message)
+
+        species = message.species_id
+        if species not in self.species_generations:
+            self.species_generations[species] = 0
+
+        original = message.message['original']
+        encoded = message.message['encoded']
+        received = message.message['received']
+        sender = message.message['genome_id']
+
+
+    def handle_generation(self, message):
+        super(Messages, self).handle_generation(message)
+
+        species = message.species_id
+
+        if species not in self.species_generations:
+            self.species_generations[species] = 0
+        else:
+            self.species_generations[species] += 1
+
+    def handle_finish(self):
+        super(Messages, self).handle_finish()
+
+        for s in self.encoded:
+            if len(self.encoded[s][-1]) == 0:
+                del self.encoded[s][-1]
+
+        for s in self.received:
+            if len(self.received[s][-1]) == 0:
+                del self.received[s][-1]

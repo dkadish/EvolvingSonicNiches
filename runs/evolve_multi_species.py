@@ -204,7 +204,7 @@ def run(config_encoders, config_decoders):
             s.join()
 
     for s in species:
-        s.decoding_scores.put(False)
+        s.dataframe_list.put(False)
 
     for s, t in zip(stats_mods, threads):
         s.done()

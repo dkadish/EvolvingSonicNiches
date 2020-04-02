@@ -31,15 +31,15 @@ class CommunicatorSet:
 
     def createDecoderEvaluator(self,
                                messages, scores,
-                               decoding_scores, species_id, config):
+                               decoding_scores, species_id, run_id, config):
         if config is not None:
             self.evaluator = DecoderEvaluator(
                                           messages, scores, self.genomes,
-                                          decoding_scores, species_id, config=config)
+                                          decoding_scores, species_id, run_id, config=config)
         else:
             self.evaluator = DecoderEvaluator(
                 messages, scores, self.genomes,
-                decoding_scores, species_id)
+                decoding_scores, species_id, run_id)
         
         if self.checkpoint_dir is not None:
             prefix = '{}/{:%y-%m-%d-%H-%M-%S}_neat-dec-checkpoint-'.format(self.checkpoint_dir,datetime.now())
@@ -49,15 +49,15 @@ class CommunicatorSet:
 
     def createEncoderEvaluator(self,
                                messages, scores,
-                               decoding_scores, species_id, config):
+                               decoding_scores, species_id, run_id, config):
         if config is not None:
             self.evaluator = EncoderEvaluator(
                                           messages, scores, self.genomes,
-                                          decoding_scores, species_id, config=config)
+                                          decoding_scores, species_id, run_id, config=config)
         else:
             self.evaluator = EncoderEvaluator(
                                           messages, scores, self.genomes,
-                                          decoding_scores, species_id)
+                                          decoding_scores, species_id, run_id)
         if self.checkpoint_dir is not None:
             prefix = '{}/{:%y-%m-%d-%H-%M-%S}_neat-enc-checkpoint-'.format(self.checkpoint_dir,datetime.now())
         else:
@@ -78,30 +78,32 @@ class Species:
     counter = 0
 
     def __init__(self, encoder_config, decoder_config, #encoded: MultiQueue,
-                 messages: MultiQueue, pairwise=False, checkpoint_dir=None, evaluator_config=None):
+                 messages: MultiQueue, run=0, pairwise=False, checkpoint_dir=None, evaluator_config=None):
         # self.encoded = encoded
         self.messages = messages
         self.scores = Queue()
-        self.decoding_scores = Queue()
+        self.dataframe_list = Queue()
 
         self.species_id = Species.counter
         Species.counter += 1
 
+        self.run_id = run
+
         self.encoder = CommunicatorSet(encoder_config, checkpoint_dir)
         self.encoder.createEncoderEvaluator(
                                             self.messages, self.scores,
-                                            self.decoding_scores, self.species_id, evaluator_config)
+                                            self.dataframe_list, self.species_id, self.run_id, evaluator_config)
 
         if not pairwise:
             self.decoder = CommunicatorSet(decoder_config, checkpoint_dir)
             self.decoder.createDecoderEvaluator(
                                                 self.messages.add(), self.scores,
-                                                self.decoding_scores, self.species_id, evaluator_config)
+                                                self.dataframe_list, self.species_id, self.run_id, evaluator_config)
         else:
             self.decoder = CommunicatorSet(decoder_config, checkpoint_dir)
             self.decoder.createPairwireDecoderEvaluator(
                                                         self.messages.add(), self.scores,
-                                                        self.decoding_scores, self.species_id, evaluator_config)
+                                                        self.dataframe_list, self.species_id, self.run_id, evaluator_config)
 
         print('New species id: %i' %self.species_id)
 
@@ -113,6 +115,13 @@ class Species:
         self.encoder.thread.start()
         self.decoder.thread.start()
 
-    def join(self):
-        self.encoder.thread.join()
-        self.decoder.thread.join()
+    def join(self, timeout=None):
+        if timeout is None:
+            self.encoder.thread.join()
+            self.decoder.thread.join()
+        else:
+            self.encoder.thread.join(timeout/2)
+            self.decoder.thread.join(timeout/2)
+
+    def is_alive(self):
+        return self.encoder.thread.is_alive() or self.decoder.thread.is_alive()
