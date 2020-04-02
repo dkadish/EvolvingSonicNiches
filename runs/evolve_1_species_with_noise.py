@@ -21,7 +21,7 @@ sys.path.append(EN_PATH)
 from genome import DefaultGenome
 from parallel import MultiQueue
 from species import Species
-from stats import Spectrum, Cohesion, Loudness, MessageSpectrum, Messages
+from stats import Spectrum, Cohesion, Loudness, MessageSpectrum, Messages, DataFrameReporter
 from visualize.plot import plot_message_spectrum, plot_stats, plot_received_message_spectrum#, \
     # get_decoding_scores_list, plot_scores
 from visualize.print import print_best
@@ -187,6 +187,14 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
     print('Saving DataFrame...')
     df_file = 'data/{}/dataframe_archive.xz'.format(dirname)
     df.to_pickle(df_file)
+
+    individual_df = DataFrameReporter.dataframe()
+    for s in species:
+        individual_df = individual_df.append(s.encoder.df_reporter.df)
+        individual_df = individual_df.append(s.decoder.df_reporter.df)
+    print('Saving DataFrame...')
+    df_file = 'data/{}/dataframe_individuals.xz'.format(dirname)
+    individual_df.to_pickle(df_file)
 
     # NEW DATA STORAGE #
     print('Creating Python Class Archive...')

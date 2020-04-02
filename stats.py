@@ -1,11 +1,13 @@
 from multiprocessing import Queue
 
 import numpy as np
+import pandas as pd
 from scipy.spatial.distance import cdist
 from sklearn import metrics
 from sklearn.manifold import TSNE
 
 from messaging import MessageType, Message
+from neat.reporting import BaseReporter
 
 
 class EncodedStatsBase:
@@ -101,9 +103,9 @@ class Spectrum(EncodedStatsBase):
             self.n_spectra = len(encoded_message)
 
         if species not in self.spectra:
-            self.spectra[species] = [[],]
+            self.spectra[species] = [[], ]
         if species not in self.received_spectra:
-            self.received_spectra[species] = [[],]
+            self.received_spectra[species] = [[], ]
 
         self.spectra[species][-1].append(np.array(encoded_message))
         self.received_spectra[species][-1].append(np.array(received_message))
@@ -398,7 +400,7 @@ class Cluster(EncodedStatsBase):
         print(species, self.silhouette[species][-1] + 1, self.best[species] * best_multiplier,
               (self.silhouette[species][-1] + 1) > self.best[species] * best_multiplier)
         if (self.silhouette[species][-1] + 1) > self.best[
-                species] * best_multiplier:  # +1 to raise range to [0,2] from [-1,1]
+            species] * best_multiplier:  # +1 to raise range to [0,2] from [-1,1]
             is_best = True
             self.best[species] = self.silhouette[species][-1] + 1
 
@@ -445,7 +447,7 @@ class Cluster(EncodedStatsBase):
         print(self.overall, self.silhouette[self.overall][-1] + 1, self.best[self.overall] * 1.2,
               (self.silhouette[self.overall][-1] + 1) > self.best[self.overall] * 1.2)
         if (self.silhouette[self.overall][-1] + 1) > self.best[
-                self.overall] * 1.2:  # +1 to raise range to [0,2] from [-1,1]
+            self.overall] * 1.2:  # +1 to raise range to [0,2] from [-1,1]
             is_best = True
             self.best[self.overall] = self.silhouette[self.overall][-1] + 1
 
@@ -463,9 +465,9 @@ class Messages(EncodedStatsBase):
     def __init__(self, messages: Queue):
         super(Messages, self).__init__(messages)
 
-        self.encoded = {} # Message as encoded by the senders.
-        self.originals = {} # This is the original message that was sent
-        self.received = {} # The message as received by the receiver. Includes noise, interference, distortion, etc.
+        self.encoded = {}  # Message as encoded by the senders.
+        self.originals = {}  # This is the original message that was sent
+        self.received = {}  # The message as received by the receiver. Includes noise, interference, distortion, etc.
 
     def handle_message(self, message: Message):
         super(Messages, self).handle_message(message)
@@ -532,7 +534,6 @@ class DFMessages(EncodedStatsBase):
         received = message.message['received']
         sender = message.message['genome_id']
 
-
     def handle_generation(self, message):
         super(Messages, self).handle_generation(message)
 
@@ -553,3 +554,62 @@ class DFMessages(EncodedStatsBase):
         for s in self.received:
             if len(self.received[s][-1]) == 0:
                 del self.received[s][-1]
+
+
+class DataFrameReporter(BaseReporter):
+    columns = [
+        'id',
+        'run',
+        'generation',
+        'species',
+        'subspecies',
+        'role',
+        'fitness',
+        'genome',
+        'nodes',
+        'connections'
+    ]
+
+    def __init__(self, run: int, species: int, role: str) -> None:
+        super().__init__()
+
+        self.df = self.dataframe()
+        self.generation = 0
+        self.role = role
+        self.run = run
+        self.species = species
+
+        assert self.role == 'sender' or self.role == 'receiver'
+
+    def start_generation(self, generation):
+        super().start_generation(generation)
+
+    def post_evaluate(self, config, population, species, best_genome):
+        super().post_evaluate(config, population, species, best_genome)
+
+        df_list = []
+
+        for gid in population:
+            genome = population[gid]
+            id = genome.key
+            run = self.run
+            generation = self.generation
+            spec = self.species
+            subspecies = species.get_species_id(gid)
+            role = self.role
+            fitness = genome.fitness
+            nodes = len(genome.nodes)
+            connections = len(genome.connections)
+
+            df_list.append([id, run, generation, spec, subspecies, role, fitness, genome, nodes, connections])
+
+        new_df = self.dataframe(df_list)
+        self.df = self.df.append(new_df)
+
+    @staticmethod
+    def dataframe(data=None):
+        df = pd.DataFrame(data=data, columns=DataFrameReporter.columns)
+        df.set_index('id')
+        df['role'] = df['role'].astype('category')
+
+        return df

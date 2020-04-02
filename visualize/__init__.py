@@ -11,7 +11,7 @@ import joblib
 import matplotlib.pyplot as plt
 import numpy as np
 
-plt.set_loglevel(logging.WARNING)
+plt.set_loglevel('warning')
 
 def message_sort_key(message):
     if type(message) == str:

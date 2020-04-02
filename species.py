@@ -6,6 +6,7 @@ import neat
 from evaluators import EncoderEvaluator, DecoderEvaluator, PairwiseDecoderEvaluator
 from parallel import MultiQueue
 from population import Population
+from stats import DataFrameReporter
 
 
 class CommunicatorSet:
@@ -24,10 +25,12 @@ class CommunicatorSet:
         # self.population.add_reporter(neat.Checkpointer(5))
 
         self.evaluator = None
+        self.df_reporter = None
 
         self.thread = None
 
         self.checkpoint_dir = checkpoint_dir
+
 
     def createDecoderEvaluator(self,
                                messages, scores,
@@ -46,6 +49,8 @@ class CommunicatorSet:
         else:
             prefix='{:%y-%m-%d-%H-%M-%S}_neat-dec-checkpoint-'.format(datetime.now())
         self.population.add_reporter(neat.Checkpointer(5, filename_prefix=prefix))
+        self.df_reporter = DataFrameReporter(run=run_id, species=species_id, role='receiver')
+        self.population.add_reporter(self.df_reporter)
 
     def createEncoderEvaluator(self,
                                messages, scores,
@@ -64,6 +69,8 @@ class CommunicatorSet:
             prefix='{:%y-%m-%d-%H-%M-%S}_neat-enc-checkpoint-'.format(datetime.now())
 
         self.population.add_reporter(neat.Checkpointer(5, filename_prefix=prefix))
+        self.df_reporter = DataFrameReporter(run=run_id, species=species_id, role='sender')
+        self.population.add_reporter(self.df_reporter)
 
     def createPairwireDecoderEvaluator(self, #encoded,
                                        messages, scores,
