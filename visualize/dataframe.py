@@ -36,3 +36,36 @@ def plot_spectrum(spectra, cmap='rainbow', view=False, vmin=None, vmax=None,
         plt.show()
 
     plt.close()
+
+def calculate_species_counts(individuals: pd.DataFrame):
+    subspecies_counts_by_generation = individuals.groupby(by=['run', 'generation', 'species', 'subspecies', 'role']).count()
+
+    runs = []
+    for r in individuals['run'].unique():
+        runs.append(subspecies_counts_by_generation.loc[r, :, :, :, 'receiver'])
+
+    return runs
+
+def plot_species(statistics, view=False, filename='speciation.svg'):
+    """ Visualizes speciation throughout evolution. """
+    if plt is None:
+        warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    species_sizes = statistics.get_species_sizes()
+    num_generations = len(species_sizes)
+    curves = np.array(species_sizes).T
+
+    fig, ax = plt.subplots()
+    ax.stackplot(range(num_generations), *curves)
+
+    plt.title("Speciation")
+    plt.ylabel("Size per Species")
+    plt.xlabel("Generations")
+
+    plt.savefig(filename)
+
+    if view:
+        plt.show()
+
+    plt.close()

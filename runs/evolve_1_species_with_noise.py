@@ -58,6 +58,8 @@ def load_run_from_directory(directory):
 
 def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_level, noise_generation, directory='',
         run_id=None, resume=None):
+    logger.debug('Starting run id {}'.format(run_id))
+
     dirname = setup_directories(directory, run_id)
 
     # Load configuration
@@ -183,18 +185,18 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
     #     df_list.append(row)
 
     df = pd.DataFrame(dataframe_list, columns=columns)
-    df.set_index('id')
+    df.set_index(['run','id'])
     print('Saving DataFrame...')
-    df_file = 'data/{}/dataframe_archive.xz'.format(dirname)
-    df.to_pickle(df_file)
+    mess_file = 'data/{}/dataframe_archive.xz'.format(dirname)
+    df.to_pickle(mess_file)
 
     individual_df = DataFrameReporter.dataframe()
     for s in species:
         individual_df = individual_df.append(s.encoder.df_reporter.df)
         individual_df = individual_df.append(s.decoder.df_reporter.df)
     print('Saving DataFrame...')
-    df_file = 'data/{}/dataframe_individuals.xz'.format(dirname)
-    individual_df.to_pickle(df_file)
+    ind_file = 'data/{}/dataframe_individuals.xz'.format(dirname)
+    individual_df.to_pickle(ind_file)
 
     # NEW DATA STORAGE #
     print('Creating Python Class Archive...')
@@ -212,7 +214,7 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
     print('Saving archive...')
     a.save(arc_file)
 
-    return ml, fl, sl
+    return ml, fl, sl, mess_file, ind_file
 
 def setup_stats(messages):
     spectrum_stats = Spectrum(messages.add())
@@ -284,7 +286,8 @@ def do_evolution(generations, species, stats_mods):
                     dataframe_list.append(row)
                 logger.debug('Trying to join')
                 s.join(0.1)
-        logger.debug('Finished species {}'.format(s.species_id))
+                if not s.is_alive():
+                    logger.debug('Finished species {}'.format(s.species_id))
     for s in species:
         s.dataframe_list.put(None)
     for s, t in zip(stats_mods, threads):
@@ -298,6 +301,8 @@ def main(args):
     run_args = [args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel, args.noise_level,
                 args.noise_generation, args.dir]
     a = Archive()
+    messages_arch = []
+    individuals = []
     if args.multiprocessing:
         with Pool(n) as p:
             print(run_args)
@@ -305,16 +310,26 @@ def main(args):
             p.close()
             p.join()
             for r in res:
-                a.add_run(*r)
+                a.add_run(r[0], r[1], r[2])
+                messages_arch.append(pd.read_pickle(r[3]))
+                individuals.append(pd.read_pickle(r[4]))
     else:
         message_archives = []
         for r in range(args.runs):
-            ml, fl, sl = run(args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel, args.noise_level,
+            ml, fl, sl, mess_f, ind_f = run(args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel, args.noise_level,
                 args.noise_generation, args.dir, run_id=r)
             a.add_run(ml, fl, sl)
+            messages_arch.append(pd.read_pickle(mess_f))
+            individuals.append(pd.read_pickle(ind_f))
 
     print(os.path.abspath('.'))
     dirname = setup_directories(args.dir, run_id=-1)
+
+    messages_df = pd.concat(messages_arch)
+    messages_df.to_pickle('data/{}/messages.xz'.format(dirname))
+    individual_df = pd.concat(individuals)
+    individual_df.to_pickle('data/{}/individuals.xz'.format(dirname))
+
     d = 'data/{}/archive.jbl.xz'.format(dirname)
     a.save(d)
     logger.info('Saving log file to {}'.format(d))

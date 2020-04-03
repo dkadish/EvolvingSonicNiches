@@ -584,6 +584,8 @@ class DataFrameReporter(BaseReporter):
     def start_generation(self, generation):
         super().start_generation(generation)
 
+        self.generation = generation
+
     def post_evaluate(self, config, population, species, best_genome):
         super().post_evaluate(config, population, species, best_genome)
 
@@ -609,7 +611,7 @@ class DataFrameReporter(BaseReporter):
     @staticmethod
     def dataframe(data=None):
         df = pd.DataFrame(data=data, columns=DataFrameReporter.columns)
-        df.set_index('id')
+        df.set_index(['run','id'])
         df['role'] = df['role'].astype('category')
 
         return df
