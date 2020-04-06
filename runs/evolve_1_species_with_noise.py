@@ -3,15 +3,15 @@ from __future__ import print_function
 import logging
 import os
 import sys
-
 from datetime import datetime
 from multiprocessing.pool import Pool
 from queue import Empty
 from string import ascii_uppercase
 from threading import Thread
-import joblib
+
 import numpy as np
 import pandas as pd
+
 import neat
 from dataframe_archive import shrink_archive
 
@@ -22,15 +22,8 @@ sys.path.append(EN_PATH)
 from genome import DefaultGenome
 from parallel import MultiQueue
 from species import Species
-from stats import Spectrum, Cohesion, Loudness, MessageSpectrum, Messages, DataFrameReporter
-from visualize.plot import plot_message_spectrum, plot_stats, plot_received_message_spectrum#, \
-    # get_decoding_scores_list, plot_scores
-from visualize.print import print_best
+from stats import DataFrameReporter
 from noise import Noise, GenerationStepNoise
-from archive import Archive
-from archive.messages import MessageList
-from archive.fitness import FitnessList
-from archive.score import ScoreList
 
 np.set_printoptions(precision=3)
 
@@ -54,6 +47,7 @@ print(os.path.abspath('{}.log'.format(now)))
 f = logging.Filter(name='evolvingniches')
 logger = logging.getLogger('evolvingniches.run')
 logger.addFilter(f)
+
 
 def load_run_from_directory(directory):
     pass
@@ -86,86 +80,19 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
     }
 
     messages = MultiQueue()
-    species = [Species(config_enc, config_dec, messages, run=run_id, pairwise=False, checkpoint_dir='data/{}'.format(dirname),
-                       evaluator_config=eval_config) for _ in range(1)]
+    species = [
+        Species(config_enc, config_dec, messages, run=run_id, pairwise=False, checkpoint_dir='data/{}'.format(dirname),
+                evaluator_config=eval_config) for _ in range(1)]
 
     # Set noise parameters
     setup_noise(noise_channel, noise_generation, noise_level, species)
 
     # Start statistics modules
-    # message_spectrum_stats, messages_archive, spectrum_stats, stats_mods = setup_stats(messages)
     stats_mods = []
 
     dataframe_list = do_evolution(generations, species, stats_mods)
 
-    ####################################################################################################################
-
-    vmin = 0
-
-    # pickle_file = 'data/{}/data.joblib'.format(dirname)
-    # # TODO This should become a data archive class
-    # pickle_data = {
-    #     'config': {
-    #         'sender': config_enc,
-    #         'receiver': config_dec,
-    #         'n_generations': generations,
-    #     },
-    #     'evaluator_config': eval_config,
-    #     'encoder_stats': {},
-    #     'decoder_stats': {},
-    #     'message_spectra': {},
-    #     'received_message_spectra': {},
-    #     'scores': {},
-    #     'generations': generations,
-    #     'noise_channel': noise_channel,
-    #     'noise_level': noise_level
-    # }
-    #
-    # ####### Plot and Pickle #########
-    # species_scores = {}
-    # for i, s in enumerate(species):
-    #     node_names_dec, node_names_enc = print_best(config_dec, config_enc, i, s)
-    #
-    #     d = datetime.now()
-    #
-    #     # plot_networks(config_dec, config_enc, d, dirname, i, node_names_dec, node_names_enc, s, view=view)
-    #
-    #     plot_stats(d, dirname, i, s, view=True)
-    #
-    #     # TODO: Something is wrong with this module.
-    #     message_spectra = plot_message_spectrum(d, dirname, i, message_spectrum_stats, s, spectrum_stats, vmin,
-    #                                             view=view)
-    #     received_message_spectra = plot_received_message_spectrum(d, dirname, i, message_spectrum_stats, s,
-    #                                                               spectrum_stats, vmin,
-    #                                                               view=view)
-    #
-    #     pickle_data['message_spectra'][s.species_id] = message_spectra
-    #     pickle_data['received_message_spectra'][s.species_id] = received_message_spectra
-    #
-    #     # plot_cohesion(cohesion_stats, d, dirname, i, loudness_stats, s, view=view)
-    #
-    #     # scores = get_decoding_scores_list(s)
-    #     # species_scores[s.species_id] = scores
-    #     # pickle_data['scores'][i] = plot_scores(d, dirname, i, scores)
-    #
-    #     pickle_data['encoder_stats'][s.species_id] = s.encoder.stats
-    #     pickle_data['decoder_stats'][s.species_id] = s.decoder.stats
-    #
-    # print('Adding messages to pickle...')
-    #
-    # pickle_data['messages'] = {
-    #     'original': messages_archive.originals,
-    #     'encoded': messages_archive.encoded,
-    #     'received': messages_archive.received,
-    # }
-    #
-    # print('Dumping data...')
-    #
-    # joblib.dump(pickle_data, pickle_file)
-
     ind_file, mess_file = do_pandas(dataframe_list, dirname, species)
-
-    # fl, ml, sl = do_new_data_storage(dirname, run_id, species)
 
     return mess_file, ind_file
 
@@ -202,36 +129,6 @@ def do_pandas(dataframe_list, dirname, species):
     ind_file = 'data/{}/individuals.xz'.format(dirname)
     individual_df.to_pickle(ind_file)
     return ind_file, mess_file
-
-
-def do_new_data_storage(dirname, run_id, species):
-    # NEW DATA STORAGE #
-    print('Creating Python Class Archive...')
-    arc_file = 'data/{}/archive.jbl'.format(dirname)
-    a = Archive()
-    ml = MessageList.from_message_archive(messages_archive, run_id)
-    fl = FitnessList()
-    sl = ScoreList()
-    for s in species:
-        # sl.extend(ScoreList.from_score_list(species_scores[s.species_id], run=run_id, species=s.species_id))
-        fl.extend(
-            FitnessList.from_statistics_reporters(s.encoder.stats, s.decoder.stats, run=run_id, species=s.species_id))
-    a.add_run(ml, fl, sl)
-    print('Saving archive...')
-    a.save(arc_file)
-    return fl, ml, sl
-
-
-def setup_stats(messages):
-    spectrum_stats = Spectrum(messages.add())
-    message_spectrum_stats = MessageSpectrum(messages.add())
-    cohesion_stats = Cohesion(messages.add())
-    loudness_stats = Loudness(messages.add())
-    # cluster_stats = Cluster(messages.add())
-    messages_archive = Messages(messages.add())
-    stats_mods = [spectrum_stats, message_spectrum_stats, cohesion_stats, loudness_stats,  # cluster_stats,
-                  messages_archive]
-    return message_spectrum_stats, messages_archive, spectrum_stats, stats_mods
 
 
 def setup_noise(noise_channel, noise_generation, noise_level, species):
@@ -302,11 +199,11 @@ def do_evolution(generations, species, stats_mods):
 
     return dataframe_list
 
+
 def main(args):
     n = os.cpu_count() - 2
     run_args = [args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel, args.noise_level,
                 args.noise_generation, args.dir]
-    # a = Archive()
     messages_arch = []
     individuals = []
     if args.multiprocessing:
@@ -316,16 +213,14 @@ def main(args):
             p.close()
             p.join()
             for r in res:
-                # a.add_run(r[0], r[1], r[2])
                 messages_arch.append(pd.read_parquet(r[0]))
                 individuals.append(pd.read_pickle(r[1]))
     else:
-        message_archives = []
         for r in range(args.runs):
             # ml, fl, sl,\
-            mess_f, ind_f = run(args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel, args.noise_level,
-                args.noise_generation, args.dir, run_id=r)
-            # a.add_run(ml, fl, sl)
+            mess_f, ind_f = run(args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel,
+                                args.noise_level,
+                                args.noise_generation, args.dir, run_id=r)
             messages_arch.append(pd.read_parquet(mess_f))
             individuals.append(pd.read_pickle(ind_f))
 
@@ -337,10 +232,6 @@ def main(args):
     individual_df = pd.concat(individuals)
     individual_df.to_pickle('data/{}/individuals.xz'.format(dirname))
 
-    # d = 'data/{}/archive.jbl.xz'.format(dirname)
-    # a.save(d)
-    # logger.info('Saving log file to {}'.format(d))
-    # print(os.path.abspath(d))
 
 if __name__ == '__main__':
     import argparse
@@ -373,7 +264,6 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--multiprocessing', action='store_true', default=False,
                         help='use multiprocessing for the run')
     parser.add_argument('--resume', type=str, default=None, help='resume run from folder')
-
 
     logger.debug('Parsing Args.')
     args = parser.parse_args()
