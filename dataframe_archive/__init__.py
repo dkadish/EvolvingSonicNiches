@@ -1,3 +1,6 @@
+import os
+
+import gc
 import joblib
 
 import pandas as pd
@@ -8,6 +11,61 @@ from dataframe_archive.fitness import FitnessList
 from dataframe_archive.messages import MessageList
 from dataframe_archive.score import ScoreList
 
+def shrink_archive(archive):
+    downcasts = {
+        'unsigned': ['id', 'run', 'generation', 'species', 'sender', 'receiver'],
+        'float': ['encoded_{}'.format(i) for i in range(9)] + ['received_{}'.format(i) for i in range(9)] + ['score_bit', 'score_total']
+    }
+    boolean = ['original_{}'.format(i) for i in range(3)] + ['score_identity']
+    sparse = ['encoded_{}'.format(i) for i in range(9)] + ['received_{}'.format(i) for i in range(9)]
+
+    for d in downcasts:
+        for col in downcasts[d]:
+            archive.loc[:, col] = pd.to_numeric(archive.loc[:, col], downcast=d)
+
+    for col in boolean:
+        archive.loc[:, col] = archive.loc[:, col].astype(bool)
+
+    # if use_sparse:
+    #     for col in sparse:
+    #         archive.loc[:, col] = pd.arrays.SparseArray(archive.loc[:, col], fill_value=0.0)
+
+    return archive
+
+def combine_archives(folder):
+    df_archives, df_inds = [], []
+    for path, dirs, files in os.walk(folder):
+        if 'dataframe_archive.xz' in files:
+            df_archives.append(os.path.join(path, 'dataframe_archive.xz'))
+
+        if 'dataframe_individuals.xz' in files:
+            df_inds.append(os.path.join(path, 'dataframe_individuals.xz'))
+
+    archives = shrink_archive(pd.read_pickle(df_archives[0]))
+    for i, f in enumerate(df_archives[1:]):
+        gc.collect()
+        print('Adding message dataframe #{}: {}'.format(i + 2, f))
+        a = shrink_archive(pd.read_pickle(f))
+        archives = archives.append(a)
+        print('{} dataframes, using {} MB'.format(i + 2, archives.memory_usage(index=True).sum() * pow(10, -6)))
+
+        # archives.to_pickle(os.path.join(folder, 'messages.xz'))
+        archives.to_parquet(os.path.join(folder, 'messages.parquet'))
+        print('Finished pickling...')
+
+    gc.collect()
+    print('Finished appending. Pickling now.')
+    # archives.to_pickle(os.path.join(folder, 'messages.xz'))
+    archives.to_parquet(os.path.join(folder, 'messages.parquet'))
+
+    individuals = pd.read_pickle(df_inds[0])
+    for i, f in enumerate(df_inds[1:]):
+        print('Adding individual dataframe #{}: {}'.format(i + 2, f))
+        a = pd.read_pickle(f)
+        individuals = individuals.append(a)
+        print('{} dataframes, using {} MB'.format(i + 2, individuals.memory_usage(index=True).sum() * pow(10, -6)))
+
+    individuals.to_pickle(os.path.join(folder, 'individuals.xz'))
 
 class Spectrum(Filterable):
 
@@ -51,7 +109,6 @@ class Message:
             'run',
             'generation',
             'species',
-            'subspecies',
             'sender',
             'receiver']
 

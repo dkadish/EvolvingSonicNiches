@@ -48,7 +48,7 @@ class CommunicatorSet:
             prefix = '{}/{:%y-%m-%d-%H-%M-%S}_neat-dec-checkpoint-'.format(self.checkpoint_dir,datetime.now())
         else:
             prefix='{:%y-%m-%d-%H-%M-%S}_neat-dec-checkpoint-'.format(datetime.now())
-        self.population.add_reporter(neat.Checkpointer(5, filename_prefix=prefix))
+        self.population.add_reporter(neat.Checkpointer(100, filename_prefix=prefix))
         self.df_reporter = DataFrameReporter(run=run_id, species=species_id, role='receiver')
         self.population.add_reporter(self.df_reporter)
 
@@ -68,7 +68,7 @@ class CommunicatorSet:
         else:
             prefix='{:%y-%m-%d-%H-%M-%S}_neat-enc-checkpoint-'.format(datetime.now())
 
-        self.population.add_reporter(neat.Checkpointer(5, filename_prefix=prefix))
+        self.population.add_reporter(neat.Checkpointer(100, filename_prefix=prefix))
         self.df_reporter = DataFrameReporter(run=run_id, species=species_id, role='sender')
         self.population.add_reporter(self.df_reporter)
 

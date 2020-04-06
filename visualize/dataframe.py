@@ -16,7 +16,7 @@ def calculate_spectrum(archive: pd.DataFrame):
 
 def plot_spectrum(spectra, cmap='rainbow', view=False, vmin=None, vmax=None,
                   filename='spectrum.svg', title="Use of the communication spectrum by generation"):
-    """ Plots the population's average and best fitness. """
+    """ """
     if plt is None:
         logger.warning("This display is not available due to a missing optional dependency (matplotlib)")
         return
@@ -38,23 +38,18 @@ def plot_spectrum(spectra, cmap='rainbow', view=False, vmin=None, vmax=None,
     plt.close()
 
 def calculate_species_counts(individuals: pd.DataFrame):
-    subspecies_counts_by_generation = individuals.groupby(by=['run', 'generation', 'species', 'subspecies', 'role']).count()
+    subspecies_counts_by_generation = pd.pivot_table(individuals, values='id', index=['run','generation','species','role'], columns='subspecies', aggfunc=np.size, fill_value=0)
 
-    runs = []
-    for r in individuals['run'].unique():
-        runs.append(subspecies_counts_by_generation.loc[r, :, :, :, 'receiver'])
+    return subspecies_counts_by_generation
 
-    return runs
-
-def plot_species(statistics, view=False, filename='speciation.svg'):
+def plot_subspecies(counts, view=False, filename='speciation.svg'):
     """ Visualizes speciation throughout evolution. """
     if plt is None:
-        warnings.warn("This display is not available due to a missing optional dependency (matplotlib)")
+        logger.warning("This display is not available due to a missing optional dependency (matplotlib)")
         return
 
-    species_sizes = statistics.get_species_sizes()
-    num_generations = len(species_sizes)
-    curves = np.array(species_sizes).T
+    num_generations = counts.shape[0]
+    curves = counts.T
 
     fig, ax = plt.subplots()
     ax.stackplot(range(num_generations), *curves)
