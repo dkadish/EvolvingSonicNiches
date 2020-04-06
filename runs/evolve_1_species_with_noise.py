@@ -13,6 +13,7 @@ import joblib
 import numpy as np
 import pandas as pd
 import neat
+from dataframe_archive import shrink_archive
 
 EN_PATH = os.path.abspath(os.path.join(__file__, '..', '..'))
 print(EN_PATH)
@@ -47,7 +48,9 @@ N_MESSAGES = 10  # Number of messages to test on each individual in each evoluti
 N = 300
 N_RUNS = 5
 
-logging.basicConfig(level=logging.DEBUG)
+now = datetime.now()
+logging.basicConfig(level=logging.DEBUG, filename='{}.log'.format(now))
+print(os.path.abspath('{}.log'.format(now)))
 f = logging.Filter(name='evolvingniches')
 logger = logging.getLogger('evolvingniches.run')
 logger.addFilter(f)
@@ -90,7 +93,8 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
     setup_noise(noise_channel, noise_generation, noise_level, species)
 
     # Start statistics modules
-    message_spectrum_stats, messages_archive, spectrum_stats, stats_mods = setup_stats(messages)
+    # message_spectrum_stats, messages_archive, spectrum_stats, stats_mods = setup_stats(messages)
+    stats_mods = []
 
     dataframe_list = do_evolution(generations, species, stats_mods)
 
@@ -98,67 +102,75 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
 
     vmin = 0
 
-    pickle_file = 'data/{}/data.joblib'.format(dirname)
-    # TODO This should become a data archive class
-    pickle_data = {
-        'config': {
-            'sender': config_enc,
-            'receiver': config_dec,
-            'n_generations': generations,
-        },
-        'evaluator_config': eval_config,
-        'encoder_stats': {},
-        'decoder_stats': {},
-        'message_spectra': {},
-        'received_message_spectra': {},
-        'scores': {},
-        'generations': generations,
-        'noise_channel': noise_channel,
-        'noise_level': noise_level
-    }
+    # pickle_file = 'data/{}/data.joblib'.format(dirname)
+    # # TODO This should become a data archive class
+    # pickle_data = {
+    #     'config': {
+    #         'sender': config_enc,
+    #         'receiver': config_dec,
+    #         'n_generations': generations,
+    #     },
+    #     'evaluator_config': eval_config,
+    #     'encoder_stats': {},
+    #     'decoder_stats': {},
+    #     'message_spectra': {},
+    #     'received_message_spectra': {},
+    #     'scores': {},
+    #     'generations': generations,
+    #     'noise_channel': noise_channel,
+    #     'noise_level': noise_level
+    # }
+    #
+    # ####### Plot and Pickle #########
+    # species_scores = {}
+    # for i, s in enumerate(species):
+    #     node_names_dec, node_names_enc = print_best(config_dec, config_enc, i, s)
+    #
+    #     d = datetime.now()
+    #
+    #     # plot_networks(config_dec, config_enc, d, dirname, i, node_names_dec, node_names_enc, s, view=view)
+    #
+    #     plot_stats(d, dirname, i, s, view=True)
+    #
+    #     # TODO: Something is wrong with this module.
+    #     message_spectra = plot_message_spectrum(d, dirname, i, message_spectrum_stats, s, spectrum_stats, vmin,
+    #                                             view=view)
+    #     received_message_spectra = plot_received_message_spectrum(d, dirname, i, message_spectrum_stats, s,
+    #                                                               spectrum_stats, vmin,
+    #                                                               view=view)
+    #
+    #     pickle_data['message_spectra'][s.species_id] = message_spectra
+    #     pickle_data['received_message_spectra'][s.species_id] = received_message_spectra
+    #
+    #     # plot_cohesion(cohesion_stats, d, dirname, i, loudness_stats, s, view=view)
+    #
+    #     # scores = get_decoding_scores_list(s)
+    #     # species_scores[s.species_id] = scores
+    #     # pickle_data['scores'][i] = plot_scores(d, dirname, i, scores)
+    #
+    #     pickle_data['encoder_stats'][s.species_id] = s.encoder.stats
+    #     pickle_data['decoder_stats'][s.species_id] = s.decoder.stats
+    #
+    # print('Adding messages to pickle...')
+    #
+    # pickle_data['messages'] = {
+    #     'original': messages_archive.originals,
+    #     'encoded': messages_archive.encoded,
+    #     'received': messages_archive.received,
+    # }
+    #
+    # print('Dumping data...')
+    #
+    # joblib.dump(pickle_data, pickle_file)
 
-    ####### Plot and Pickle #########
-    species_scores = {}
-    for i, s in enumerate(species):
-        node_names_dec, node_names_enc = print_best(config_dec, config_enc, i, s)
+    ind_file, mess_file = do_pandas(dataframe_list, dirname, species)
 
-        d = datetime.now()
+    # fl, ml, sl = do_new_data_storage(dirname, run_id, species)
 
-        # plot_networks(config_dec, config_enc, d, dirname, i, node_names_dec, node_names_enc, s, view=view)
+    return mess_file, ind_file
 
-        plot_stats(d, dirname, i, s, view=True)
 
-        # TODO: Something is wrong with this module.
-        message_spectra = plot_message_spectrum(d, dirname, i, message_spectrum_stats, s, spectrum_stats, vmin,
-                                                view=view)
-        received_message_spectra = plot_received_message_spectrum(d, dirname, i, message_spectrum_stats, s,
-                                                                  spectrum_stats, vmin,
-                                                                  view=view)
-
-        pickle_data['message_spectra'][s.species_id] = message_spectra
-        pickle_data['received_message_spectra'][s.species_id] = received_message_spectra
-
-        # plot_cohesion(cohesion_stats, d, dirname, i, loudness_stats, s, view=view)
-
-        # scores = get_decoding_scores_list(s)
-        # species_scores[s.species_id] = scores
-        # pickle_data['scores'][i] = plot_scores(d, dirname, i, scores)
-
-        pickle_data['encoder_stats'][s.species_id] = s.encoder.stats
-        pickle_data['decoder_stats'][s.species_id] = s.decoder.stats
-
-    print('Adding messages to pickle...')
-
-    pickle_data['messages'] = {
-        'original': messages_archive.originals,
-        'encoded': messages_archive.encoded,
-        'received': messages_archive.received,
-    }
-
-    print('Dumping data...')
-
-    joblib.dump(pickle_data, pickle_file)
-
+def do_pandas(dataframe_list, dirname, species):
     # DataFrame Data Storage #
     print('Creating DataFrame...')
     columns = [
@@ -176,45 +188,39 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
         'score_bit',
         'score_total'
     ])
-
-    # df_list = []
-    # while True:
-    #     row = species.dataframe_list.get()
-    #     if row is None:
-    #         break
-    #     df_list.append(row)
-
     df = pd.DataFrame(dataframe_list, columns=columns)
-    df.set_index(['run','id'])
+    df.set_index(['run', 'id'])
+    df = shrink_archive(df)
     print('Saving DataFrame...')
-    mess_file = 'data/{}/dataframe_archive.xz'.format(dirname)
-    df.to_pickle(mess_file)
-
+    mess_file = 'data/{}/messages.parquet'.format(dirname)
+    df.to_parquet(mess_file)
     individual_df = DataFrameReporter.dataframe()
     for s in species:
         individual_df = individual_df.append(s.encoder.df_reporter.df)
         individual_df = individual_df.append(s.decoder.df_reporter.df)
     print('Saving DataFrame...')
-    ind_file = 'data/{}/dataframe_individuals.xz'.format(dirname)
+    ind_file = 'data/{}/individuals.xz'.format(dirname)
     individual_df.to_pickle(ind_file)
+    return ind_file, mess_file
 
+
+def do_new_data_storage(dirname, run_id, species):
     # NEW DATA STORAGE #
     print('Creating Python Class Archive...')
     arc_file = 'data/{}/archive.jbl'.format(dirname)
     a = Archive()
     ml = MessageList.from_message_archive(messages_archive, run_id)
-
     fl = FitnessList()
     sl = ScoreList()
     for s in species:
         # sl.extend(ScoreList.from_score_list(species_scores[s.species_id], run=run_id, species=s.species_id))
-        fl.extend(FitnessList.from_statistics_reporters(s.encoder.stats, s.decoder.stats, run=run_id, species=s.species_id))
-
+        fl.extend(
+            FitnessList.from_statistics_reporters(s.encoder.stats, s.decoder.stats, run=run_id, species=s.species_id))
     a.add_run(ml, fl, sl)
     print('Saving archive...')
     a.save(arc_file)
+    return fl, ml, sl
 
-    return ml, fl, sl, mess_file, ind_file
 
 def setup_stats(messages):
     spectrum_stats = Spectrum(messages.add())
@@ -300,7 +306,7 @@ def main(args):
     n = os.cpu_count() - 2
     run_args = [args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel, args.noise_level,
                 args.noise_generation, args.dir]
-    a = Archive()
+    # a = Archive()
     messages_arch = []
     individuals = []
     if args.multiprocessing:
@@ -310,30 +316,31 @@ def main(args):
             p.close()
             p.join()
             for r in res:
-                a.add_run(r[0], r[1], r[2])
-                messages_arch.append(pd.read_pickle(r[3]))
-                individuals.append(pd.read_pickle(r[4]))
+                # a.add_run(r[0], r[1], r[2])
+                messages_arch.append(pd.read_parquet(r[0]))
+                individuals.append(pd.read_pickle(r[1]))
     else:
         message_archives = []
         for r in range(args.runs):
-            ml, fl, sl, mess_f, ind_f = run(args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel, args.noise_level,
+            # ml, fl, sl,\
+            mess_f, ind_f = run(args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel, args.noise_level,
                 args.noise_generation, args.dir, run_id=r)
-            a.add_run(ml, fl, sl)
-            messages_arch.append(pd.read_pickle(mess_f))
+            # a.add_run(ml, fl, sl)
+            messages_arch.append(pd.read_parquet(mess_f))
             individuals.append(pd.read_pickle(ind_f))
 
     print(os.path.abspath('.'))
     dirname = setup_directories(args.dir, run_id=-1)
 
     messages_df = pd.concat(messages_arch)
-    messages_df.to_pickle('data/{}/messages.xz'.format(dirname))
+    messages_df.to_parquet('data/{}/messages.parquet'.format(dirname))
     individual_df = pd.concat(individuals)
     individual_df.to_pickle('data/{}/individuals.xz'.format(dirname))
 
-    d = 'data/{}/archive.jbl.xz'.format(dirname)
-    a.save(d)
-    logger.info('Saving log file to {}'.format(d))
-    print(os.path.abspath(d))
+    # d = 'data/{}/archive.jbl.xz'.format(dirname)
+    # a.save(d)
+    # logger.info('Saving log file to {}'.format(d))
+    # print(os.path.abspath(d))
 
 if __name__ == '__main__':
     import argparse
