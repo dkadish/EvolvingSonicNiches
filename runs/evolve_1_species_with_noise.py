@@ -42,10 +42,13 @@ N = 300
 N_RUNS = 5
 
 now = datetime.now()
-logging.basicConfig(level=logging.DEBUG, filename='{}.log'.format(now))
+logging.basicConfig(level=logging.DEBUG, filename='{}.log'.format(now), format='%(asctime)s - %(threadName)s - %(name)s - %(levelname)s - %(message)s')
 print('Logging to {}'.format(os.path.abspath('{}.log'.format(now))))
 f = logging.Filter(name='evolvingniches')
 logger = logging.getLogger('evolvingniches.run')
+sh = logging.StreamHandler()
+sh.setFormatter(logging.Formatter(fmt='%(asctime)s - %(threadName)s - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(sh)
 logger.addFilter(f)
 
 
@@ -99,7 +102,7 @@ def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_le
 
 def do_pandas(dataframe_list, dirname, species):
     # DataFrame Data Storage #
-    print('Creating DataFrame...')
+    logging.debug('Creating DataFrame in {} for species {}...'.format(dirname, species))
     columns = [
         'id',
         'run',
@@ -118,14 +121,14 @@ def do_pandas(dataframe_list, dirname, species):
     df = pd.DataFrame(dataframe_list, columns=columns)
     df.set_index(['run', 'id'])
     df = shrink_archive(df)
-    print('Saving DataFrame...')
+    logging.debug('Saving message DataFramein {} for species {}...'.format(dirname, species))
     mess_file = 'data/{}/messages.parquet'.format(dirname)
     df.to_parquet(mess_file)
     individual_df = DataFrameReporter.dataframe()
     for s in species:
         individual_df = individual_df.append(s.encoder.df_reporter.df)
         individual_df = individual_df.append(s.decoder.df_reporter.df)
-    print('Saving DataFrame...')
+    logging.debug('Saving individual DataFrame in {} for species {}...'.format(dirname, species))
     ind_file = 'data/{}/individuals.xz'.format(dirname)
     individual_df.to_pickle(ind_file)
     return ind_file, mess_file
@@ -152,10 +155,10 @@ def setup_directories(directory, run_id):
     """
 
     if run_id is None:
-        print('No run_id')
+        logger.debug('No run_id')
         dirname = '{0:%y}{1}{0:%d_%H%M%S}'.format(datetime.now(), ascii_uppercase[int(datetime.now().month) - 1])
     else:
-        print('Running run number {}'.format(run_id + 1))
+        logger.info('Running run number {}'.format(run_id + 1))
         run_id += 1
         dirname = '{0:%y}{1}{0:%d_%H%M%S}-{2}'.format(datetime.now(), ascii_uppercase[int(datetime.now().month) - 1],
                                                       run_id)
@@ -208,7 +211,7 @@ def main(args):
     individuals = []
     if args.multiprocessing:
         with Pool(n) as p:
-            print(run_args)
+            logger.debug(run_args)
             res = p.starmap(run, [run_args + [i] for i in range(args.runs)])
             p.close()
             p.join()
@@ -224,7 +227,7 @@ def main(args):
             messages_arch.append(pd.read_parquet(mess_f))
             individuals.append(pd.read_pickle(ind_f))
 
-    print(os.path.abspath('.'))
+    logger.debug('Path for summary DataFrames: {}'.format(os.path.abspath('.')))
     dirname = setup_directories(args.dir, run_id=-1)
 
     messages_df = pd.concat(messages_arch)
@@ -267,5 +270,5 @@ if __name__ == '__main__':
 
     logger.debug('Parsing Args.')
     args = parser.parse_args()
-    print(args)
+    logger.debug(args)
     main(args)
