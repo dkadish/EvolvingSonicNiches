@@ -6,10 +6,6 @@ import joblib
 import pandas as pd
 
 import neat
-from dataframe_archive.filterable import Filterable
-from dataframe_archive.fitness import FitnessList
-from dataframe_archive.messages import MessageList
-from dataframe_archive.score import ScoreList
 
 def shrink_archive(archive):
     downcasts = {
@@ -67,11 +63,6 @@ def combine_archives(folder):
 
     individuals.to_pickle(os.path.join(folder, 'individuals.xz'))
 
-class Spectrum(Filterable):
-
-    def __init__(self, run=None, generation=None, species=None, subspecies=None):
-        super().__init__(run, generation, species, subspecies)
-
 
 class EnvironmentConfig:
     class Simulation:
@@ -123,35 +114,3 @@ class Message:
         ])
 
         return pd.DataFrame(columns=columns)
-
-
-class Archive:
-
-    def __init__(self, messages=[], fitnesses=[], scores=[], configs:Config=None, **kwargs) -> None:
-        self.messages = MessageList(messages)
-        self.fitness = FitnessList(fitnesses)
-        self.scores = ScoreList(scores)
-
-    def add_run(self, message_list, fitness_list, score_list, run_id=None):
-        # if run_id is None:
-        #     run_id = self.messages.next_run
-        #
-        # ml = MessageList.from_message_archive(message_archive, run=run_id)
-
-        self.messages.extend(message_list)
-        self.fitness.extend(fitness_list)
-        self.scores.extend(score_list)
-
-    def save(self, filename):
-        joblib.dump(self, filename)
-
-    def __add__(self, other):
-        raise NotImplementedError('Not Implemented yet.')
-
-    @staticmethod
-    def load(filename):
-        return joblib.load(filename)
-
-    @staticmethod
-    def createArchive(message_archive):
-        pass

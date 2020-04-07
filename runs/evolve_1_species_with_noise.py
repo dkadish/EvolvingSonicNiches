@@ -13,7 +13,6 @@ import numpy as np
 import pandas as pd
 
 import neat
-from dataframe_archive import shrink_archive
 
 EN_PATH = os.path.abspath(os.path.join(__file__, '..', '..'))
 print(EN_PATH)
@@ -24,6 +23,7 @@ from parallel import MultiQueue
 from species import Species
 from stats import DataFrameReporter
 from noise import Noise, GenerationStepNoise
+from dataframe_archive import shrink_archive
 
 np.set_printoptions(precision=3)
 
@@ -43,7 +43,7 @@ N_RUNS = 5
 
 now = datetime.now()
 logging.basicConfig(level=logging.DEBUG, filename='{}.log'.format(now))
-print(os.path.abspath('{}.log'.format(now)))
+print('Logging to {}'.format(os.path.abspath('{}.log'.format(now))))
 f = logging.Filter(name='evolvingniches')
 logger = logging.getLogger('evolvingniches.run')
 logger.addFilter(f)
