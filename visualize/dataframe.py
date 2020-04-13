@@ -2,17 +2,9 @@ import logging
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 
 logger = logging.getLogger('evolvingniches.visualize.pd')
 
-def calculate_spectrum(archive: pd.DataFrame):
-    generation_mean = archive.groupby(by=['run', 'generation', 'species']).mean()
-
-    encoded = generation_mean.loc[:, 'encoded_0':'encoded_8']
-    received = generation_mean.loc[:, 'received_0':'received_8']
-
-    return encoded.to_numpy(), received.to_numpy()
 
 def plot_spectrum(spectra, cmap='rainbow', view=False, vmin=None, vmax=None,
                   filename='spectrum.svg', title="Use of the communication spectrum by generation"):
@@ -37,10 +29,6 @@ def plot_spectrum(spectra, cmap='rainbow', view=False, vmin=None, vmax=None,
 
     plt.close()
 
-def calculate_species_counts(individuals: pd.DataFrame):
-    subspecies_counts_by_generation = pd.pivot_table(individuals, values='id', index=['run','generation','species','role'], columns='subspecies', aggfunc=np.size, fill_value=0)
-
-    return subspecies_counts_by_generation
 
 def plot_subspecies(counts, view=False, filename='speciation.svg'):
     """ Visualizes speciation throughout evolution. """

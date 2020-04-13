@@ -23,7 +23,7 @@ from parallel import MultiQueue
 from species import Species
 from stats import DataFrameReporter
 from noise import Noise, GenerationStepNoise
-from dataframe_archive import shrink_archive
+from dataframe import shrink_archive
 
 np.set_printoptions(precision=3)
 
@@ -104,7 +104,7 @@ def do_pandas(dataframe_list, dirname, species):
     # DataFrame Data Storage #
     logging.debug('Creating DataFrame in {} for species {}...'.format(dirname, species))
     columns = [
-        'id',
+        # 'id',
         'run',
         'generation',
         'species',
@@ -119,7 +119,7 @@ def do_pandas(dataframe_list, dirname, species):
         'score_total'
     ])
     df = pd.DataFrame(dataframe_list, columns=columns)
-    df.set_index(['run', 'id'])
+    # df.set_index(['run', 'id'])
     df = shrink_archive(df)
     logging.debug('Saving message DataFramein {} for species {}...'.format(dirname, species))
     mess_file = 'data/{}/messages.parquet'.format(dirname)

@@ -7,13 +7,57 @@ import pandas as pd
 
 import neat
 
-def shrink_archive(archive):
+class Columns:
+
+    # id = 'id'
+    run = 'run'
+    generation = 'generation'
+    species = 'species'
+    sender = 'sender'
+    receiver = 'receiver'
+    original = ['original_{}'.format(i) for i in range(3)]
+    encoded = ['encoded_{}'.format(i) for i in range(9)]
+    received = ['received_{}'.format(i) for i in range(9)]
+    score_identity = 'score_identity'
+    score_bit = 'score_bit'
+    score_total = 'score_total'
+
+    # identifiers = [id, run, generation, species, sender, receiver]
+    identifiers = [run, generation, species, sender, receiver]
+    messages = original + encoded + received
+    scores = [score_identity, score_bit, score_total]
+
+    all = identifiers + messages + scores
+
+def shrink_individuals(individuals):
     downcasts = {
-        'unsigned': ['id', 'run', 'generation', 'species', 'sender', 'receiver'],
+        'unsigned': ['id', 'run', 'generation', 'species', 'subspecies', 'nodes', 'connections'],
+        'float': ['fitness']
+    }
+
+    categories = ['role']
+
+    for d in downcasts:
+        for col in downcasts[d]:
+            individuals.loc[:, col] = pd.to_numeric(individuals.loc[:, col], downcast=d)
+
+    individuals.info()
+    for col in categories:
+        individuals.loc[:, col] = individuals.loc[:, col].astype('category')
+
+
+def shrink_archive(archive):
+    drop = ['id']
+    downcasts = {
+        'unsigned': ['run', 'generation', 'species', 'sender', 'receiver'],
         'float': ['encoded_{}'.format(i) for i in range(9)] + ['received_{}'.format(i) for i in range(9)] + ['score_bit', 'score_total']
     }
     boolean = ['original_{}'.format(i) for i in range(3)] + ['score_identity']
     sparse = ['encoded_{}'.format(i) for i in range(9)] + ['received_{}'.format(i) for i in range(9)]
+
+    for d in drop:
+        if d in archive.columns:
+            archive = archive.drop(columns=d)
 
     for d in downcasts:
         for col in downcasts[d]:
@@ -31,8 +75,8 @@ def shrink_archive(archive):
 def combine_archives(folder):
     df_archives, df_inds = [], []
     for path, dirs, files in os.walk(folder):
-        if 'dataframe_archive.xz' in files:
-            df_archives.append(os.path.join(path, 'dataframe_archive.xz'))
+        if 'dataframe.xz' in files:
+            df_archives.append(os.path.join(path, 'dataframe.xz'))
 
         if 'dataframe_individuals.xz' in files:
             df_inds.append(os.path.join(path, 'dataframe_individuals.xz'))
@@ -96,7 +140,7 @@ class Message:
     @staticmethod
     def create():
         columns = [
-            'id',
+            # 'id',
             'run',
             'generation',
             'species',

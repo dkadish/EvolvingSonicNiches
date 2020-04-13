@@ -205,8 +205,6 @@ class DecoderEvaluator(BaseEvaluator):
         species_ids = []
         false_count = 0
 
-        dfl = []
-
         # Wait for encoded messages from encoders
         message = self.messages.get()  # Assume the first one isn't false
         while message.type != MessageType.FINISHED:
@@ -263,9 +261,8 @@ class DecoderEvaluator(BaseEvaluator):
                     bit_scores[genome_id].append(bit_score)
                     total_scores[genome_id].append(total_score)
 
-                df_row = self._make_dataframe_row(enc_species_id, enc_genome_id, original_message, encoded_message,
+                df_row = self._make_dataframe_row(enc_species_id, enc_genome_id, genome_id, original_message, encoded_message,
                                                   received_message, species_score, bit_score, total_score)
-                dfl.append(df_row)
                 self.dataframe_list.put(df_row)
 
             message = self.messages.get()
@@ -287,22 +284,14 @@ class DecoderEvaluator(BaseEvaluator):
 
         self.genomes.put(dict(genomes))
 
-        # df = pd.DataFrame(dfl)
-        # print(df)
-        # print(df.info())
+    def _make_dataframe_row(self, species, sender, receiver, original, encoded, received, score_identity, score_bit, score_total):
 
-        # self.dataframe_list.put({'species': species_scores, 'bit': bit_scores, 'total': total_scores})
-
-    def _make_dataframe_row(self, species, sender, original, encoded, received, score_identity, score_bit, score_total):
-
-        message_id = self.next_message_id
         if species not in self.generation:
             self.generation[species] = 0
         generation = self.generation[species]
-        receiver = self.species_id
         run = self.run_id
 
-        row = [message_id, run, generation, species, sender, receiver] + list(original) + list(encoded) + list(received) + \
+        row = [run, generation, species, sender, receiver] + list(original) + list(encoded) + list(received) + \
               [score_identity, score_bit, score_total]
         return row
 
