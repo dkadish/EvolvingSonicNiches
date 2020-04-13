@@ -273,7 +273,7 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--multiprocessing', action='store_true', default=False,
                         help='use multiprocessing for the run')
     parser.add_argument('--resume', type=str, default=None, help='resume run from folder')
-    parser.add_argument('--summary', type=bool, default=False, action='store_true', help='Compute a summary statistics file')
+    parser.add_argument('--summary', default=False, action='store_true', help='Compute a summary statistics file')
 
     logger.debug('Parsing Args.')
     args = parser.parse_args()

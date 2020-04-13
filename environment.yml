@@ -22,5 +22,6 @@ dependencies:
     - graphviz>=0.13.2
     - humanize>=1.0.0
     - pyarrow>=0.16.0
-prefix: /Users/davk/anaconda/envs/EvolvingNiches
+    - git+https://github.com/dkadish/neat-python.git
+prefix: ~/anaconda/envs/EvolvingNiches
 
