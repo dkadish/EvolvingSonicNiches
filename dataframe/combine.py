@@ -34,7 +34,7 @@ def combine_archives(folder):
         i = pd.read_pickle(f)
         individuals = individuals.append(i)
 
-    messages.to_parquet(os.path.join(folder, 'individuals.xz'))
+    individuals.to_pickle(os.path.join(folder, 'individuals.xz'))
 
 def main(args):
     combine_archives(args.dir)
