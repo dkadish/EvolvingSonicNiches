@@ -177,7 +177,7 @@ def do_evolution(generations, species, stats_mods):
     k = 0
     dataframe_list = []
     while generations < 0 or k < generations:
-        logger.debug('Starting Generation')
+        logger.debug('Starting Generation {}'.format(k))
         k += 1
         for s in species:
             s.start()
