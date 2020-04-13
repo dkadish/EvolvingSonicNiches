@@ -212,28 +212,31 @@ def main(args):
     if args.multiprocessing:
         with Pool(n) as p:
             logger.debug(run_args)
-            res = p.starmap(run, [run_args + [i] for i in range(args.runs)])
+            res = p.starmap(run, [run_args + [i + args.run_id] for i in range(args.runs)])
             p.close()
             p.join()
-            for r in res:
-                messages_arch.append(pd.read_parquet(r[0]))
-                individuals.append(pd.read_pickle(r[1]))
+            if args.summary:
+                for r in res:
+                    messages_arch.append(pd.read_parquet(r[0]))
+                    individuals.append(pd.read_pickle(r[1]))
     else:
         for r in range(args.runs):
             # ml, fl, sl,\
             mess_f, ind_f = run(args.encoder_conf, args.decoder_conf, args.generations, args.show, args.noise_channel,
                                 args.noise_level,
-                                args.noise_generation, args.dir, run_id=r)
-            messages_arch.append(pd.read_parquet(mess_f))
-            individuals.append(pd.read_pickle(ind_f))
+                                args.noise_generation, args.dir, run_id=r + args.run_id)
+            if args.summary:
+                messages_arch.append(pd.read_parquet(mess_f))
+                individuals.append(pd.read_pickle(ind_f))
 
-    logger.debug('Path for summary DataFrames: {}'.format(os.path.abspath('.')))
-    dirname = setup_directories(args.dir, run_id=-1)
+    if args.summary:
+        logger.debug('Path for summary DataFrames: {}'.format(os.path.abspath('.')))
+        dirname = setup_directories(args.dir, run_id=-1)
 
-    messages_df = pd.concat(messages_arch)
-    messages_df.to_parquet('data/{}/messages.parquet'.format(dirname))
-    individual_df = pd.concat(individuals)
-    individual_df.to_pickle('data/{}/individuals.xz'.format(dirname))
+        messages_df = pd.concat(messages_arch)
+        messages_df.to_parquet('data/{}/messages.parquet'.format(dirname))
+        individual_df = pd.concat(individuals)
+        individual_df.to_pickle('data/{}/individuals.xz'.format(dirname))
 
 
 if __name__ == '__main__':
@@ -253,6 +256,9 @@ if __name__ == '__main__':
     parser.add_argument('-r', '--runs', metavar='R', type=int, action='store',
                         default=N_RUNS,
                         help='number of runs')
+    parser.add_argument('--run-id', metavar='R', type=int, action='store',
+                        default=0,
+                        help='number of runs')
     parser.add_argument('-V', '--visualize', action='store_true', default=False,
                         help='Generate visualizations for the run.')
     parser.add_argument('-s', '--show', action='store_true', default=False,
@@ -267,6 +273,7 @@ if __name__ == '__main__':
     parser.add_argument('-m', '--multiprocessing', action='store_true', default=False,
                         help='use multiprocessing for the run')
     parser.add_argument('--resume', type=str, default=None, help='resume run from folder')
+    parser.add_argument('--summary', type=bool, default=False, action='store_true', help='Compute a summary statistics file')
 
     logger.debug('Parsing Args.')
     args = parser.parse_args()
