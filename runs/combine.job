@@ -4,7 +4,7 @@
 #SBATCH --output=job.%j.out      # Name of output file (%j expands to jobId)
 #SBATCH --exclusive              # Exclusive machines
 #SBATCH --time=02:00:00          # Run time (hh:mm:ss) - run for one hour max
-#SBATCH --partition=red,brown    # Run on either the Red or Brown queue
+#SBATCH --partition=red    # Run on either the Red or Brown queue
 #SBATCH --mail-type=FAIL,END          # Send an email when the job finishes or fails
 
 echo "Running $(hostname)"

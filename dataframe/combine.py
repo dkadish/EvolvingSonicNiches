@@ -1,5 +1,6 @@
 import logging
 import os, sys
+from datetime import datetime
 
 import pandas as pd
 
@@ -7,12 +8,21 @@ EN_PATH = os.path.abspath(os.path.join(__file__, '..', '..'))
 print(EN_PATH)
 sys.path.append(EN_PATH)
 
+now = datetime.now()
+logging.basicConfig(level=logging.DEBUG, filename='{}.log'.format(now), format='%(asctime)s - %(threadName)s - %(name)s - %(levelname)s - %(message)s')
+print('Logging to {}'.format(os.path.abspath('{}.log'.format(now))))
+f = logging.Filter(name='evolvingniches')
 logger = logging.getLogger('evolvingniches.dataframe.combine')
+sh = logging.StreamHandler()
+sh.setFormatter(logging.Formatter(fmt='%(asctime)s - %(threadName)s - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(sh)
+logger.addFilter(f)
 
 def combine_archives(folder):
     messages_files = []
     individuals_files = []
 
+    logger.debug('Appending Filepaths')
     for path, dirs, files in os.walk(folder):
         if 'messages.parquet' in files:
             messages_files.append(os.path.join(path, 'messages.parquet'))
@@ -20,6 +30,7 @@ def combine_archives(folder):
         if 'individuals.xz' in files:
             individuals_files.append(os.path.join(path, 'individuals.xz'))
 
+    logger.debug('Combining message archives')
     messages = pd.read_parquet(messages_files[0])
     for i, f in enumerate(messages_files[1:]):
         print('Adding dataframe #{}: {}'.format(i + 2, f))
