@@ -449,3 +449,5 @@ pip-selfcheck.json
 data/
 
 analysis/results/
+
+runs/config.ini

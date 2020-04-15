@@ -1,6 +1,9 @@
 from __future__ import print_function
 
+import configparser
 import logging
+from logdna import LogDNAHandler
+
 import os
 import sys
 from datetime import datetime
@@ -24,6 +27,11 @@ from species import Species
 from stats import DataFrameReporter
 from noise import Noise, GenerationStepNoise
 from dataframe import shrink_archive
+
+config = configparser.ConfigParser()
+config_file = os.path.abspath(os.path.join(__file__, '..','config.ini'))
+print('Reading file at {}'.format(config_file))
+config.read(config_file)
 
 np.set_printoptions(precision=3)
 
@@ -49,8 +57,14 @@ logger = logging.getLogger('evolvingniches.run')
 sh = logging.StreamHandler()
 sh.setFormatter(logging.Formatter(fmt='%(asctime)s - %(threadName)s - %(name)s - %(levelname)s - %(message)s'))
 logger.addHandler(sh)
-logger.addFilter(f)
 
+key = config['logdna']['key']
+print('Logging with key {}'.format(key))
+options = {'level': 'debug'}
+logdna_handler = LogDNAHandler(key, options)
+logger.addHandler(logdna_handler)
+
+logger.addFilter(f)
 
 def load_run_from_directory(directory):
     pass
@@ -58,7 +72,7 @@ def load_run_from_directory(directory):
 
 def run(conf_encoders, conf_decoders, generations, view, noise_channel, noise_level, noise_generation, directory='',
         run_id=None, resume=None):
-    logger.debug('Starting run id {}'.format(run_id))
+    logger.info('Starting run id {}'.format(run_id))
 
     dirname = setup_directories(directory, run_id)
 
@@ -177,7 +191,7 @@ def do_evolution(generations, species, stats_mods):
     k = 0
     dataframe_list = []
     while generations < 0 or k < generations:
-        logger.debug('Starting Generation {}'.format(k))
+        logger.info('Starting Generation {}'.format(k))
         k += 1
         for s in species:
             s.start()
