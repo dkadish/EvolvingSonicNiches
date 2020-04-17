@@ -451,3 +451,5 @@ data/
 analysis/results/
 
 runs/config.ini
+
+.idea/datalore.xml
