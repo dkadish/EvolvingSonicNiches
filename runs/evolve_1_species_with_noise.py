@@ -26,7 +26,7 @@ from parallel import MultiQueue
 from species import Species
 from stats import DataFrameReporter
 from noise import Noise, GenerationStepNoise
-from dataframe import shrink_archive
+from dataframe import shrink_archive, shrink_individuals
 
 config = configparser.ConfigParser()
 config_file = os.path.abspath(os.path.join(__file__, '..','config.ini'))
@@ -142,6 +142,7 @@ def do_pandas(dataframe_list, dirname, species):
     for s in species:
         individual_df = individual_df.append(s.encoder.df_reporter.df)
         individual_df = individual_df.append(s.decoder.df_reporter.df)
+    individual_df = shrink_individuals(individual_df)
     logging.debug('Saving individual DataFrame in {} for species {}...'.format(dirname, species))
     ind_file = 'data/{}/individuals.xz'.format(dirname)
     individual_df.to_pickle(ind_file)

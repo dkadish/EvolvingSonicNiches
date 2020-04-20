@@ -6,7 +6,11 @@ import warnings
 from functools import reduce
 from math import inf
 
-import graphviz
+try:
+    import graphviz
+except ModuleNotFoundError as e:
+    graphviz = None
+
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np

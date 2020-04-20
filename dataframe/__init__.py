@@ -45,6 +45,7 @@ def shrink_individuals(individuals):
     for col in categories:
         individuals.loc[:, col] = individuals.loc[:, col].astype('category')
 
+    return individuals
 
 def shrink_archive(archive):
     drop = ['id']

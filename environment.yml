@@ -12,7 +12,7 @@ dependencies:
   - pandas>=1.0.3
   - pip
   - prompt_toolkit>=2.0.9
-  - python>=3.6.8
+  - python>=3.8
   - scikit-learn>=0.20.2
   - scipy>=1.2.0
   - setuptools

@@ -1,8 +1,12 @@
 import logging
 
+import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
+import seaborn as sns
+
+matplotlib.rcParams['figure.figsize'] = [10.5, 8]
 
 logger = logging.getLogger('evolvingniches.visualize.pd')
 
@@ -106,26 +110,112 @@ def plot_channel_volume_histogram(spectra: pd.DataFrame, view=False, vmin=None, 
 
     plt.close()
 
+def plot_subspecies_abundances(summary, run=None, species=None, role=None, view=False, filename='speciation.svg'):
+    """Visualizes speciation throughout evolution.
 
+    :param pd.DataFrame counts: The dataframe produced by subspecies_averages_and_counts.
+    :param view:
+    :param filename:
+    :return:
+    """
 
-############### NOT IMPLEMENTED PROPERLY
-def plot_subspecies(counts, view=False, filename='speciation.svg'):
-    """ Visualizes speciation throughout evolution. """
     if plt is None:
         logger.warning("This display is not available due to a missing optional dependency (matplotlib)")
         return
 
-    num_generations = counts.shape[0]
-    curves = counts.T
+    xs_keys = [run, species, role]
+    xs_levels = ['run', 'species', 'role']
 
-    fig, ax = plt.subplots()
-    ax.stackplot(range(num_generations), *curves)
+    xs_keys, xs_levels = list(zip(*filter(lambda f: f[0] is not None, zip(xs_keys, xs_levels))))
 
-    plt.title("Speciation")
-    plt.ylabel("Size per Species")
-    plt.xlabel("Generations")
+    if len(xs_keys) > 0:
+        summary = summary.xs(xs_keys, level=xs_levels)
 
-    plt.savefig(filename)
+    counts = summary.loc[:, 'counts'].unstack('subspecies')
+
+    ax = counts.plot.area(legend=False)
+
+    ax.set_title("Speciation")
+    ax.set_ylabel("Size per Species")
+    ax.set_xlabel("Generations")
+
+    plt.tight_layout()
+
+    if filename is not None:
+        plt.savefig(filename)
+
+    if view:
+        plt.show()
+
+    plt.close()
+
+def plot_subspecies_counts(summary, run=None, species=None, role=None, view=False, filename='speciation.svg'):
+    """Visualizes speciation throughout evolution.
+
+    :param pd.DataFrame summary: The dataframe produced by subspecies_averages_and_counts.
+    :param view:
+    :param filename:
+    :return:
+    """
+
+    if plt is None:
+        logger.warning("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    counts = summary['counts'].unstack('subspecies').count(axis=1).rename('counts')
+
+    sns.relplot(x='generation', y='counts', hue='role', kind='line', data=counts.reset_index())
+
+def plot_subspecies_pairplot(summary, run=None, species=None, role=None, view=False, filename='speciation.svg'):
+    """Visualizes speciation throughout evolution.
+
+    :param pd.DataFrame summary: The dataframe produced by subspecies_averages_and_counts.
+    :param view:
+    :param filename:
+    :return:
+    """
+
+    if plt is None:
+        logger.warning("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    sns.pairplot(data=summary.xs('sender', level='role'), plot_kws={'alpha': 0.05})
+
+    sns.pairplot(data=summary.xs('receiver', level='role'), plot_kws={'alpha': 0.05})
+
+def plot_subspecies_scores(summary, run=None, species=None, role=None, view=False, filename='speciation.svg'):
+    """Visualizes speciation throughout evolution.
+
+    :param pd.DataFrame counts: The dataframe produced by subspecies_averages_and_counts.
+    :param view:
+    :param filename:
+    :return:
+    """
+
+    if plt is None:
+        logger.warning("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    xs_keys = [run, species, role]
+    xs_levels = ['run', 'species', 'role']
+
+    xs_keys, xs_levels = list(zip(*filter(lambda f: f[0] is not None, zip(xs_keys, xs_levels))))
+
+    if len(xs_keys) > 0:
+        summary = summary.xs(xs_keys, level=xs_levels)
+
+    counts = summary.loc[:, 'fitness'].unstack('subspecies')
+
+    ax = counts.plot.area(legend=False)
+
+    ax.set_title("Speciation")
+    ax.set_ylabel("Size per Species")
+    ax.set_xlabel("Generations")
+
+    plt.tight_layout()
+
+    if filename is not None:
+        plt.savefig(filename)
 
     if view:
         plt.show()
