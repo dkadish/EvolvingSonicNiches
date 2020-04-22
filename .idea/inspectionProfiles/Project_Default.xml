@@ -17,8 +17,27 @@
     <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
       <option name="ignoredPackages">
         <value>
-          <list size="1">
+          <list size="20">
             <item index="0" class="java.lang.String" itemvalue="neat-python" />
+            <item index="1" class="java.lang.String" itemvalue="sphinxcontrib-applehelp" />
+            <item index="2" class="java.lang.String" itemvalue="tornado" />
+            <item index="3" class="java.lang.String" itemvalue="sphinxcontrib-serializinghtml" />
+            <item index="4" class="java.lang.String" itemvalue="kiwisolver" />
+            <item index="5" class="java.lang.String" itemvalue="wcwidth" />
+            <item index="6" class="java.lang.String" itemvalue="requests" />
+            <item index="7" class="java.lang.String" itemvalue="sphinxcontrib-htmlhelp" />
+            <item index="8" class="java.lang.String" itemvalue="snowballstemmer" />
+            <item index="9" class="java.lang.String" itemvalue="sphinxcontrib-devhelp" />
+            <item index="10" class="java.lang.String" itemvalue="Theano" />
+            <item index="11" class="java.lang.String" itemvalue="PySocks" />
+            <item index="12" class="java.lang.String" itemvalue="Sphinx" />
+            <item index="13" class="java.lang.String" itemvalue="sphinxcontrib-jsmath" />
+            <item index="14" class="java.lang.String" itemvalue="sphinxcontrib-qthelp" />
+            <item index="15" class="java.lang.String" itemvalue="docutils" />
+            <item index="16" class="java.lang.String" itemvalue="humanize" />
+            <item index="17" class="java.lang.String" itemvalue="prompt-toolkit" />
+            <item index="18" class="java.lang.String" itemvalue="urllib3" />
+            <item index="19" class="java.lang.String" itemvalue="sphinxcontrib-websupport" />
           </list>
         </value>
       </option>

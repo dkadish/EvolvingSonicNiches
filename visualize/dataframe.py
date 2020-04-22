@@ -9,6 +9,7 @@ import seaborn as sns
 matplotlib.rcParams['figure.figsize'] = [10.5, 8]
 
 logger = logging.getLogger('evolvingniches.visualize.pd')
+logger.setLevel(logging.INFO)
 
 def _plt_check():
     if plt is None:
@@ -35,6 +36,7 @@ def plot_spectrum(spectra, cmap='rainbow', view=False, vmin=None, vmax=None,
     """
     if not _plt_check(): return
 
+    logger.debug('Grouping messages')
     generational_spectrum = spectra.groupby('generation').mean()
 
     fig, ax = plt.subplots()
@@ -47,22 +49,30 @@ def plot_spectrum(spectra, cmap='rainbow', view=False, vmin=None, vmax=None,
     plt.grid()
 
     if filename is not None:
+        logger.debug('Saving file as {}'.format(filename))
         plt.savefig(filename)
 
     if view:
+        logger.debug('Viewing plot')
         plt.show()
 
     plt.close()
 
 def plot_run_spectra(spectra, cmap='rainbow', view=False, vmin=None, vmax=None, shape=(5,5),
-                  filename='spectra.svg', title="Communication Spectra for All Runs"):
+                  filename='spectra.svg', title="Communication Spectra for All Runs", base_run=None):
     # if not _plt_check(): return
 
+    logger.debug('Compiling data')
     run_generational_spectrum = spectra.groupby(['run', 'generation']).mean()
 
     fig, axes = plt.subplots(*shape, sharex=True, sharey=True, constrained_layout=True)
     for i, ax in enumerate(axes.flat):
-        p = ax.pcolormesh(run_generational_spectrum.loc[(i, slice(None)), :].T, cmap=cmap, vmin=vmin, vmax=vmax)
+        logger.debug('Plotting run number {}'.format(i))
+        if base_run is None:
+            run_spectrum = run_generational_spectrum.loc[(i, slice(None)), :]
+        else:
+            run_spectrum = run_generational_spectrum.loc[((base_run,i), slice(None)), :]
+        p = ax.pcolormesh(run_spectrum.T, cmap=cmap, vmin=vmin, vmax=vmax)
         ax.tick_params(
             axis='both',
             which='both',  # both major and minor ticks are affected
@@ -78,16 +88,16 @@ def plot_run_spectra(spectra, cmap='rainbow', view=False, vmin=None, vmax=None, 
     fig.colorbar(p, ax=axes[:,-1], location='right')
 
     fig.suptitle(title)
-    # axes[-1, shape[0]//2].set_xlabel("Generations")
-    # axes[shape[1]//2, 0].set_ylabel("Spectrum")
-    # plt.grid()
 
     if filename is not None:
+        logger.debug('Saving file as {}'.format(filename))
         plt.savefig(filename)
 
     if view:
+        logger.debug('Viewing plot')
         plt.show()
-
+    
+    logger.debug('Closing plot')
     plt.close()
 
 def plot_channel_volume_histogram(spectra: pd.DataFrame, view=False, vmin=None, vmax=None,

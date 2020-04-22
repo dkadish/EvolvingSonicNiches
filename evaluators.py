@@ -22,7 +22,8 @@ MESSAGE_SET = [
     tuple([1, 1, 1])
 ]
 
-logger = logging.getLogger('Evaluators')
+logger = logging.getLogger('evolvingniches.evaluators')
+logger.setLevel(logging.INFO)
 
 default_config = {
     'Simulation': {
@@ -127,6 +128,7 @@ class EncoderEvaluator(BaseEvaluator):
         # TODO: Calculate penalty fot sound intensity here.
         # Create the NNs and encode the messages
         for i, (genome_id, genome) in enumerate(genomes):
+            logger.debug('Evaluating encoder {} of {}'.format(i+1, len(genomes)))
             net = neat.nn.FeedForwardNetwork.create(genome, config)
             for original_message in messages[i]:
                 encoded_message = net.activate(original_message)
@@ -206,6 +208,7 @@ class DecoderEvaluator(BaseEvaluator):
         false_count = 0
 
         # Wait for encoded messages from encoders
+        logger.debug('Awaiting messages for decoding.')
         message = self.messages.get()  # Assume the first one isn't false
         while message.type != MessageType.FINISHED:
             enc_species_id = message.species_id

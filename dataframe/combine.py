@@ -31,6 +31,7 @@ def combine_archives(folder):
             individuals_files.append(os.path.join(path, 'individuals.xz'))
 
     logger.debug('Combining message archives')
+    print('Adding dataframe #{}: {}'.format(1, messages_files[0]))
     messages = pd.read_parquet(messages_files[0])
     for i, f in enumerate(messages_files[1:]):
         print('Adding dataframe #{}: {}'.format(i + 2, f))
@@ -39,6 +40,7 @@ def combine_archives(folder):
 
     messages.to_parquet(os.path.join(folder, 'messages.parquet'))
 
+    print('Adding dataframe #{}: {}'.format(1, individuals_files[0]))
     individuals = pd.read_pickle(individuals_files[0])
     for i, f in enumerate(individuals_files[1:]):
         print('Adding dataframe #{}: {}'.format(i + 2, f))

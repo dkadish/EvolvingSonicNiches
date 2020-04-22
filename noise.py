@@ -30,10 +30,10 @@ class Noise(Iterable):
 class GenerationStepNoise(Noise):
     """Noise that appears suddenly one generation."""
 
-    def __init__(self, levels, channels, generation) -> None:
+    def __init__(self, levels, channels, generation, current_generation=0) -> None:
         super().__init__(levels, channels)
 
-        self.current_generation = 0
+        self.current_generation = current_generation
         self.start_generation = generation
 
     def __next__(self):
