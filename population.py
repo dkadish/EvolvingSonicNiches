@@ -1,7 +1,20 @@
+import gzip
+import logging
+import pickle
+import random
+
 import neat
 from neat import CompleteExtinctionException
 from neat.six_util import iteritems, itervalues
 
+logger = logging.getLogger('evolvingniches.population')
+
+def restore_checkpoint(filename):
+    """Resumes the simulation from a previous saved point."""
+    with gzip.open(filename) as f:
+        generation, config, population, species_set, rndstate = pickle.load(f)
+        random.setstate(rndstate)
+        return Population(config, (population, species_set, generation))
 
 class Population(neat.Population):
 
@@ -60,10 +73,11 @@ class Population(neat.Population):
         the genomes themselves (apart from updating the fitness member),
         or the configuration object.
         """
-
+        logger.debug('Starting Generation')
         self.reporters.start_generation(self.generation)
 
         # Evaluate all genomes using the user-provided function.
+        logger.debug('Evaluating Genomes')
         fitness_function(list(iteritems(self.population)), self.config)
 
         # Gather and report statistics.
@@ -85,6 +99,7 @@ class Population(neat.Population):
                 return False
 
         # Create the next generation from the current generation.
+        logger.debug('Creating next generation')
         self.population = self.reproduction.reproduce(self.config, self.species,
                                                       self.config.pop_size, self.generation)
 
@@ -99,6 +114,7 @@ class Population(neat.Population):
                                                                self.config.genome_config,
                                                                self.config.pop_size)
             else:
+                logger.warning('Complete Extinction!')
                 raise CompleteExtinctionException()
 
         # Divide the new population into species.
