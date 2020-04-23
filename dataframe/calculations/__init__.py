@@ -1,9 +1,11 @@
 import pandas as pd
 
 
-def subspecies_averages_and_counts(individuals: pd.DataFrame, save=None):
-    # subspecies_counts_by_generation = pd.pivot_table(individuals, values='id', index=['run','generation','species','role'], columns='subspecies', aggfunc=np.size, fill_value=0)
-    # return subspecies_counts_by_generation
+def subspecies_averages_and_counts(individuals: pd.DataFrame = None, individuals_file: str = None, save='subspecies.parquet'):
+    assert not (individuals is None and individuals_file is None)
+
+    if individuals_file is not None:
+        individuals = pd.read_pickle(individuals_file)
 
     bysubspecies = individuals.groupby(['run', 'generation', 'species', 'subspecies', 'role'])
     counts = bysubspecies['id'].count().rename('counts')

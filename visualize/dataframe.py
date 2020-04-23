@@ -37,7 +37,7 @@ def plot_spectrum(spectra, cmap='rainbow', view=False, vmin=None, vmax=None,
     if not _plt_check(): return
 
     logger.debug('Grouping messages')
-    generational_spectrum = spectra.groupby('generation').mean()
+    generational_spectrum = spectra.groupby('generation').mean().sort_index(level='generation')
 
     fig, ax = plt.subplots()
     p = ax.pcolormesh(generational_spectrum.T, cmap=cmap, vmin=vmin, vmax=vmax)
@@ -66,12 +66,13 @@ def plot_run_spectra(spectra, cmap='rainbow', view=False, vmin=None, vmax=None, 
     run_generational_spectrum = spectra.groupby(['run', 'generation']).mean()
 
     fig, axes = plt.subplots(*shape, sharex=True, sharey=True, constrained_layout=True)
-    for i, ax in enumerate(axes.flat):
-        logger.debug('Plotting run number {}'.format(i))
+    runs = run_generational_spectrum.index.get_level_values('run').unique()
+    for run, ax in zip(runs, axes.flat):
+        logger.debug('Plotting run number {}'.format(run))
         if base_run is None:
-            run_spectrum = run_generational_spectrum.loc[(i, slice(None)), :]
+            run_spectrum = run_generational_spectrum.loc[(run, slice(None)), :].sort_index(level='generation')
         else:
-            run_spectrum = run_generational_spectrum.loc[((base_run,i), slice(None)), :]
+            run_spectrum = run_generational_spectrum.loc[((base_run, run), slice(None)), :].sort_index(level='generation')
         p = ax.pcolormesh(run_spectrum.T, cmap=cmap, vmin=vmin, vmax=vmax)
         ax.tick_params(
             axis='both',

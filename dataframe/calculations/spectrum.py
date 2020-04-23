@@ -5,15 +5,15 @@ import pandas as pd
 from dataframe import Columns
 
 
-def encoded_by_run_generation(messages: pd.DataFrame = None, message_file: str = None):
-    return _by_run_generation(Columns.encoded, messages, message_file)
+def encoded_by_run_generation(messages: pd.DataFrame = None, message_file: str = None, save='encoded.parquet'):
+    return _by_run_generation(Columns.encoded, messages, message_file, save)
 
 
-def received_by_run_generation(messages: pd.DataFrame = None, message_file: str = None):
-    return _by_run_generation(Columns.received, messages, message_file)
+def received_by_run_generation(messages: pd.DataFrame = None, message_file: str = None, save='received.parquet'):
+    return _by_run_generation(Columns.received, messages, message_file, save)
 
 
-def _by_run_generation(message_cols: list, messages: pd.DataFrame = None, message_file: str = None):
+def _by_run_generation(message_cols: list, messages: pd.DataFrame = None, message_file: str = None, save=None):
     """Produces a MultiIndex-ed dataframe with the indices being (run, generation, species).
 
     You must pass a list of the columns to load (encoded or received) and ONE OF the message DataFrame or the parquet
@@ -32,6 +32,9 @@ def _by_run_generation(message_cols: list, messages: pd.DataFrame = None, messag
 
     run_generation_mean = messages.groupby(by=['run', 'generation', 'species']).mean()
 
+    if save is not None:
+        run_generation_mean.to_parquet(save)
+
     return run_generation_mean
 
 def specific_generation_over_runs(generations: Iterable[int], spectra: pd.DataFrame = None, spectra_file: str = None):
@@ -41,4 +44,6 @@ def specific_generation_over_runs(generations: Iterable[int], spectra: pd.DataFr
         spectra = pd.read_parquet(spectra_file)
 
     idx = pd.IndexSlice
-    return spectra.loc[idx[:, generations], :]
+    specific_generations = spectra.loc[idx[:, generations], :]
+
+    return specific_generations
