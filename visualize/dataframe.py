@@ -2,8 +2,8 @@ import logging
 
 import matplotlib
 import matplotlib.pyplot as plt
-import pandas as pd
 import numpy as np
+import pandas as pd
 import seaborn as sns
 
 matplotlib.rcParams['figure.figsize'] = [10.5, 8]
@@ -11,12 +11,14 @@ matplotlib.rcParams['figure.figsize'] = [10.5, 8]
 logger = logging.getLogger('evolvingniches.visualize.pd')
 logger.setLevel(logging.INFO)
 
+
 def _plt_check():
     if plt is None:
         logger.warning("This display is not available due to a missing optional dependency (matplotlib)")
         return False
 
     return True
+
 
 def plot_spectrum(spectra, cmap='rainbow', view=False, vmin=None, vmax=None,
                   filename='spectrum.svg', title="Average communication spectrum for all runs"):
@@ -39,7 +41,7 @@ def plot_spectrum(spectra, cmap='rainbow', view=False, vmin=None, vmax=None,
     logger.debug('Grouping messages')
     generational_spectrum = spectra.groupby('generation').mean().sort_index(level='generation')
 
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(figsize=(10.5, 8))
     p = ax.pcolormesh(generational_spectrum.T, cmap=cmap, vmin=vmin, vmax=vmax)
     fig.colorbar(p, ax=ax)
 
@@ -58,12 +60,14 @@ def plot_spectrum(spectra, cmap='rainbow', view=False, vmin=None, vmax=None,
 
     plt.close()
 
-def plot_run_spectra(spectra, cmap='rainbow', view=False, vmin=None, vmax=None, shape=(5,5),
-                  filename='spectra.svg', title="Communication Spectra for All Runs", base_run=None):
+
+def plot_run_spectra(spectra, cmap='rainbow', view=False, vmin=None, vmax=None, shape=(5, 5),
+                     filename='spectra.svg', title="Communication Spectra for All Runs", base_run=None,
+                     numbering=False):
     # if not _plt_check(): return
 
     logger.debug('Compiling data')
-    run_generational_spectrum = spectra.groupby(['run', 'generation']).mean()
+    run_generational_spectrum = spectra.groupby(['run', 'generation'], sort=False).mean()
 
     fig, axes = plt.subplots(*shape, sharex=True, sharey=True, constrained_layout=True)
     runs = run_generational_spectrum.index.get_level_values('run').unique()
@@ -72,7 +76,8 @@ def plot_run_spectra(spectra, cmap='rainbow', view=False, vmin=None, vmax=None, 
         if base_run is None:
             run_spectrum = run_generational_spectrum.loc[(run, slice(None)), :].sort_index(level='generation')
         else:
-            run_spectrum = run_generational_spectrum.loc[((base_run, run), slice(None)), :].sort_index(level='generation')
+            run_spectrum = run_generational_spectrum.loc[((base_run, run), slice(None)), :].sort_index(
+                level='generation')
         p = ax.pcolormesh(run_spectrum.T, cmap=cmap, vmin=vmin, vmax=vmax)
         ax.tick_params(
             axis='both',
@@ -85,8 +90,10 @@ def plot_run_spectra(spectra, cmap='rainbow', view=False, vmin=None, vmax=None, 
             labeltop=False,
             labelleft=False,
             labelright=False)  # labels along the bottom edge are off
+        if numbering:
+            ax.set_title(run)
 
-    fig.colorbar(p, ax=axes[:,-1], location='right')
+    fig.colorbar(p, ax=axes[:, -1], location='right')
 
     fig.suptitle(title)
 
@@ -97,18 +104,18 @@ def plot_run_spectra(spectra, cmap='rainbow', view=False, vmin=None, vmax=None, 
     if view:
         logger.debug('Viewing plot')
         plt.show()
-    
+
     logger.debug('Closing plot')
     plt.close()
 
-def plot_channel_volume_histogram(spectra: pd.DataFrame, view=False, vmin=None, vmax=None,
-                  filename='channel_histogram.svg', title="Channel volumes over multiple runs"):
 
+def plot_channel_volume_histogram(spectra: pd.DataFrame, view=False, vmin=None, vmax=None,
+                                  filename='channel_histogram.svg', title="Channel volumes over multiple runs"):
     fig, axes = plt.subplots(3, 3, sharex=True, sharey=True, constrained_layout=True)
     bins = np.arange(0, 0.7, step=0.1)
 
     for i, ax in enumerate(axes.flat):
-        vh = spectra.iloc[:,i]
+        vh = spectra.iloc[:, i]
         ax.hist(vh, bins=bins)
 
     fig.suptitle(title)
@@ -121,7 +128,9 @@ def plot_channel_volume_histogram(spectra: pd.DataFrame, view=False, vmin=None, 
 
     plt.close()
 
-def plot_subspecies_abundances(summary, run=None, species=None, role=None, view=False, filename='speciation.svg'):
+
+def plot_subspecies_abundances(summary, run=None, species=None, role=None, view=False, filename='speciation.svg',
+                               sharex=False):
     """Visualizes speciation throughout evolution.
 
     :param pd.DataFrame counts: The dataframe produced by subspecies_averages_and_counts.
@@ -144,7 +153,8 @@ def plot_subspecies_abundances(summary, run=None, species=None, role=None, view=
 
     counts = summary.loc[:, 'counts'].unstack('subspecies')
 
-    ax = counts.plot.area(legend=False)
+    fig, ax = plt.subplots()
+    counts.plot.area(legend=False, ax=ax)
 
     ax.set_title("Speciation")
     ax.set_ylabel("Size per Species")
@@ -159,6 +169,7 @@ def plot_subspecies_abundances(summary, run=None, species=None, role=None, view=
         plt.show()
 
     plt.close()
+
 
 def plot_subspecies_counts(summary, run=None, species=None, role=None, view=False, filename='speciation.svg'):
     """Visualizes speciation throughout evolution.
@@ -177,6 +188,22 @@ def plot_subspecies_counts(summary, run=None, species=None, role=None, view=Fals
 
     sns.relplot(x='generation', y='counts', hue='role', kind='line', data=counts.reset_index())
 
+    ax = plt.gca()
+    ax.set_title("Fitness by Subspecies")
+    ax.set_ylabel("Subspecies fitness weighted by size")
+    ax.set_xlabel("Generations")
+
+    plt.tight_layout()
+
+    if filename is not None:
+        plt.savefig(filename)
+
+    if view:
+        plt.show()
+
+    plt.close()
+
+
 def plot_subspecies_pairplot(summary, run=None, species=None, role=None, view=False, filename='speciation.svg'):
     """Visualizes speciation throughout evolution.
 
@@ -194,8 +221,9 @@ def plot_subspecies_pairplot(summary, run=None, species=None, role=None, view=Fa
 
     sns.pairplot(data=summary.xs('receiver', level='role'), plot_kws={'alpha': 0.05})
 
-def plot_subspecies_scores(summary, run=None, species=None, role=None, view=False, filename='speciation.svg'):
-    """Visualizes speciation throughout evolution.
+
+def plot_subspecies_fitness(summary, run=None, species=None, role=None, view=False, filename='subspecies_fitness.svg'):
+    """Visualizes the total species fitness, with contributions broken out by subspecies.
 
     :param pd.DataFrame counts: The dataframe produced by subspecies_averages_and_counts.
     :param view:
@@ -215,12 +243,93 @@ def plot_subspecies_scores(summary, run=None, species=None, role=None, view=Fals
     if len(xs_keys) > 0:
         summary = summary.xs(xs_keys, level=xs_levels)
 
-    counts = summary.loc[:, 'fitness'].unstack('subspecies')
+    weighted_fitness = summary.loc[:, 'fitness'] * summary.loc[:, 'counts']
+    normalized_fitness = weighted_fitness.div(summary.groupby('generation').sum()['counts'])
+    fitness = normalized_fitness.unstack('subspecies')
 
-    ax = counts.plot.area(legend=False)
+    ax = fitness.plot.area(legend=False)
+    ax.set_title("Average fitness over all runs")
+    ax.set_ylabel("Fitness")
+    ax.set_xlabel("Generations")
 
-    ax.set_title("Speciation")
-    ax.set_ylabel("Size per Species")
+    plt.tight_layout()
+
+    if filename is not None:
+        plt.savefig(filename)
+
+    if view:
+        plt.show()
+
+    plt.close()
+
+
+def plot_subspecies_average_fitness(individuals: pd.DataFrame, run=None, species=None, role=None, view=False,
+                                    filename='subspecies_fitness.svg'):
+    """Visualizes the comparative average fitness of subspecies
+
+    :param pd.DataFrame counts: The dataframe produced by subspecies_averages_and_counts.
+    :param view:
+    :param filename:
+    :return:
+    """
+
+    if plt is None:
+        logger.warning("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    xs_keys = [run, species, role]
+    xs_levels = ['run', 'species', 'role']
+
+    xs_keys, xs_levels = list(zip(*filter(lambda f: f[0] is not None, zip(xs_keys, xs_levels))))
+
+    if len(xs_keys) > 0:
+        individuals = individuals.xs(xs_keys, level=xs_levels)
+
+    fitness = individuals.loc[:, 'fitness']
+
+    sns.lineplot(x="generation", y="fitness",
+                 hue="subspecies",
+                 data=fitness.reset_index(), palette="Set3")
+    # ax = fitness.plot.area(legend=False)
+    ax = plt.gca()
+    ax.set_title("Fitness by Subspecies")
+    ax.set_ylabel("Subspecies fitness weighted by size")
+    ax.set_xlabel("Generations")
+
+    plt.tight_layout()
+
+    if filename is not None:
+        plt.savefig(filename)
+
+    if view:
+        plt.show()
+
+    plt.close()
+
+
+def plot_species_fitness(summary: pd.DataFrame, run=None, species=None, role=None, view=False, filename='fitness.svg'):
+    """Visualizes fitness levels for species
+
+    :param pd.DataFrame summary: The dataframe produced by subspecies_averages_and_counts.
+    :param view:
+    :param filename:
+    :return:
+    """
+
+    if plt is None:
+        logger.warning("This display is not available due to a missing optional dependency (matplotlib)")
+        return
+
+    stacked = summary.drop(columns='std').stack()
+    stacked.rename('stat', level=-1, inplace=True)
+    stacked.name = 'fitness'
+
+    sns.lineplot(x="generation", y="fitness", style="stat",
+                 data=stacked.reset_index())
+
+    ax = plt.gca()
+    ax.set_title("Fitness by Subspecies")
+    ax.set_ylabel("Subspecies fitness weighted by size")
     ax.set_xlabel("Generations")
 
     plt.tight_layout()

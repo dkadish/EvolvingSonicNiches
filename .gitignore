@@ -453,3 +453,5 @@ analysis/results/
 runs/config.ini
 
 .idea/datalore.xml
+
+.idea/sonarlint/

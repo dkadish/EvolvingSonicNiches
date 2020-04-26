@@ -1,5 +1,3 @@
-from typing import Iterable
-
 import pandas as pd
 
 from dataframe import Columns
@@ -26,9 +24,11 @@ def _by_run_generation(message_cols: list, messages: pd.DataFrame = None, messag
     """
     assert not (messages is None and message_file is None)
 
+    cols = ['run', 'generation', 'species'] + message_cols
     if message_file is not None:
-        cols = ['run', 'generation', 'species'] + message_cols
         messages = pd.read_parquet(message_file, columns=cols)
+    else:
+        messages = messages.loc[:, cols]
 
     run_generation_mean = messages.groupby(by=['run', 'generation', 'species']).mean()
 
@@ -37,13 +37,3 @@ def _by_run_generation(message_cols: list, messages: pd.DataFrame = None, messag
 
     return run_generation_mean
 
-def specific_generation_over_runs(generations: Iterable[int], spectra: pd.DataFrame = None, spectra_file: str = None):
-    assert not (spectra is None and spectra_file is None)
-
-    if spectra_file is not None:
-        spectra = pd.read_parquet(spectra_file)
-
-    idx = pd.IndexSlice
-    specific_generations = spectra.loc[idx[:, generations], :]
-
-    return specific_generations
