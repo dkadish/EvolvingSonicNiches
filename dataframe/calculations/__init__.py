@@ -1,6 +1,42 @@
+import os
 from typing import Iterable
 
+import numpy as np
 import pandas as pd
+
+import neat
+from dataframe import shrink_individuals
+from genome import DefaultGenome
+
+
+def diversity(species: pd.DataFrame, conf_encoders, conf_decoders, individuals: pd.DataFrame = None, individuals_file: str = None):
+    assert not (individuals is None and individuals_file is None)
+
+    if individuals_file is not None:
+        individuals = pd.read_pickle(individuals_file)
+
+    individuals = individuals.set_index(keys=['run', 'generation', 'species', 'subspecies', 'role', 'id'])
+
+    config = neat.Config(DefaultGenome, neat.DefaultReproduction,
+                         neat.DefaultSpeciesSet, neat.DefaultStagnation,
+                         conf_encoders)
+
+    species['diversity'] = 0.0
+
+    for i in species.index:
+        genomes = individuals.xs(i, level=species.index.names)['genome']
+
+        distances = np.zeros(shape=(genomes.size, genomes.size))
+
+        for g in genomes:
+            for h in genomes[g.key:]:
+                distances[g.key - 1, h.key - 1] = g.distance(h, config.genome_config)
+
+        distance = np.average(distances)
+
+        species.loc[i, 'diversity'] = distance
+
+    return species
 
 
 def individual(individuals: pd.DataFrame = None, individuals_file: str = None, save='individuals.parquet'):
@@ -18,19 +54,32 @@ def individual(individuals: pd.DataFrame = None, individuals_file: str = None, s
     return individuals
 
 
-def species_fitness_summary(individuals: pd.DataFrame = None, individuals_file: str = None, save='fitness.parquet'):
+def species_summary(individuals: pd.DataFrame = None, individuals_file: str = None, save='species.parquet', config_path=None):
     assert not (individuals is None and individuals_file is None)
 
     if individuals_file is not None:
         individuals = pd.read_pickle(individuals_file)
 
+    individuals = shrink_individuals(individuals)
+
+    no_subspecies_id = individuals.drop(columns=['subspecies', 'id'])
+    byspecies = no_subspecies_id.groupby(['run', 'generation', 'species', 'role'])
+    species_means = byspecies.mean()
+
     fitness = individuals.groupby(['run', 'generation', 'species', 'role'])['fitness']
-    fitness_summary = fitness.agg(['max', 'mean', 'min', 'std'])
+    fitness_summary = fitness.agg(['max', 'min', 'std'])
+
+    summary = pd.concat([species_means, fitness_summary], axis=1)
+
+    if config_path is not None:
+        enc = os.path.join(config_path, 'config-encoders')
+        dec = os.path.join(config_path,'config-decoders')
+        summary = diversity(summary, enc, dec, individuals=individuals)
 
     if save is not None:
-        fitness_summary.to_parquet(save)
+        summary.to_parquet(save)
 
-    return fitness_summary
+    return summary
 
 
 def subspecies_averages_and_counts(individuals: pd.DataFrame = None, individuals_file: str = None,
@@ -48,21 +97,6 @@ def subspecies_averages_and_counts(individuals: pd.DataFrame = None, individuals
         subspecies_summary.to_parquet(save)
 
     return subspecies_summary
-
-
-def species_averages(individuals: pd.DataFrame = None, individuals_file: str = None, save='species.parquet'):
-    assert not (individuals is None and individuals_file is None)
-
-    if individuals_file is not None:
-        individuals = pd.read_pickle(individuals_file)
-
-    byspecies = individuals.groupby(['run', 'generation', 'species', 'role'])
-    species_summary = byspecies[['fitness', 'nodes', 'connections']].mean()
-
-    if save is not None:
-        species_summary.to_parquet(save)
-
-    return species_summary
 
 
 def specific_generation_over_runs(generations: Iterable[int], data: pd.DataFrame = None, data_file: str = None):

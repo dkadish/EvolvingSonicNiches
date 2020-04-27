@@ -1,10 +1,9 @@
 import logging
 import os
-from typing import Iterable
 
 import pandas as pd
 
-from dataframe.calculations import subspecies_averages_and_counts, species_averages, individual, species_fitness_summary
+from dataframe.calculations import subspecies_averages_and_counts, species_summary, individual
 from dataframe.calculations.spectrum import encoded_by_run_generation, received_by_run_generation
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(threadName)s - %(name)s - %(levelname)s - %(message)s')
@@ -12,12 +11,14 @@ f = logging.Filter(name='evolvingniches')
 logger = logging.getLogger('evolvingniches.run.calculations')
 logger.addFilter(f)
 
+
 def exists(d, *args):
     for f in args:
         if not os.path.exists(os.path.join(d, f)):
             return False
 
     return True
+
 
 def main(arguments):
     directory = arguments.dir
@@ -48,10 +49,6 @@ def main(arguments):
         if not exists(directory, 'individuals.parquet') or arguments.force:
             individual(individuals=individuals, save=os.path.join(directory, 'individuals.parquet'))
 
-        if not exists(directory, 'fitness.parquet') or arguments.force:
-            logger.info('Extracting species fitness summary.')
-            species_fitness_summary(individuals=individuals, save=os.path.join(directory, 'fitness.parquet'))
-
         if not exists(directory, 'subspecies.parquet') or arguments.force:
             logger.info('Extracting subspecies averages and counts.')
             subspecies_averages_and_counts(individuals=individuals,
@@ -59,8 +56,9 @@ def main(arguments):
 
         if not exists(directory, 'species.parquet') or arguments.force:
             logger.info('Extracting species averages.')
-            species_averages(individuals=individuals,
-                             save=os.path.join(directory, 'species.parquet'))
+            species_summary(individuals=individuals,
+                            save=os.path.join(directory, 'species.parquet'),
+                            config_path=arguments.config)
 
 
 if __name__ == '__main__':
@@ -68,6 +66,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Calculate sub-dataframes for a run.')
     parser.add_argument('dir', type=str, default='', help='directory containing messages.parquet and individuals.xz')
+    parser.add_argument('-c', '--config', type=str, default=None, help='directory of the NEAT config files config-encoders and config-decoders')
     parser.add_argument('-f', '--force', action='store_true', default=False, help='force regeneration of files')
 
     logger.debug('Parsing Args.')
