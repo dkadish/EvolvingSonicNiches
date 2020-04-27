@@ -1,9 +1,14 @@
 import argparse
-import os
+import os, sys
 import shutil
 import types
 
 import pandas as pd
+
+EN_PATH = os.path.abspath(os.path.join(__file__, '..', '..'))
+print(EN_PATH)
+sys.path.append(EN_PATH)
+
 from runs import run_calculations
 
 directory = '/home/davk/EvolvingNiches/runs/data'

@@ -3,7 +3,7 @@
 #SBATCH --job-name=EvolvingNichesCombine # Job name
 #SBATCH --output=job.%j.out      # Name of output file (%j expands to jobId)
 #SBATCH --exclusive              # Exclusive machines
-#SBATCH --time=01:00:00          # Run time (hh:mm:ss) - run for one hour max
+#SBATCH --time=02:00:00          # Run time (hh:mm:ss) - run for one hour max
 #SBATCH --partition=red    # Run on either the Red or Brown queue
 #SBATCH --mail-type=FAIL,END          # Send an email when the job finishes or fails
 
@@ -15,5 +15,5 @@ echo "Activating conda environment"
 conda activate EvolvingNiches
 which python3.8
 echo "Running Python"
-/home/davk/.conda/envs/EvolvingNiches/bin/python /home/davk/EvolvingNiches/dataframe/combine.py /home/davk/EvolvingNiches/runs/data/$FOLDER
+/home/davk/.conda/envs/EvolvingNiches/bin/python /home/davk/EvolvingNiches/runs/fix_generations.py
 sleep 1
