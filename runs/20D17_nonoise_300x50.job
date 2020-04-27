@@ -1,11 +1,11 @@
 #!/bin/bash
 
 #SBATCH --job-name=EvolvingNiches# Job name
-#SBATCH --array=0-24             # Array indexes from 1 to 10
+#SBATCH --array=0-49             # Array indexes from 1 to 10
 #SBATCH --output=job.%j.out      # Name of output file (%j expands to jobId)
 #SBATCH --cpus-per-task=4        # Schedule one core
 #SBATCH --exclusive              # Exclusive machines
-#SBATCH --time=02:00:00          # Run time (hh:mm:ss) - run for one hour max
+#SBATCH --time=01:00:00          # Run time (hh:mm:ss) - run for one hour max
 #SBATCH --partition=red,brown    # Run on either the Red or Brown queue
 #SBATCH --mail-type=FAIL,END          # Send an email when the job finishes or fails
 
@@ -17,5 +17,5 @@ echo "Activating conda environment"
 conda activate EvolvingNiches
 which python3.8
 echo "Running Python"
-/home/davk/.conda/envs/EvolvingNiches/bin/python /home/davk/EvolvingNiches/runs/evolve_1_species_with_noise.py -d 20D15_g0_c012_i1_300x25 -g 300 -r 1 --run-id $SLURM_ARRAY_TASK_ID --noise-channel 0 1 2 --noise-level 1.0 --noise-generation 0
+/home/davk/.conda/envs/EvolvingNiches/bin/python /home/davk/EvolvingNiches/runs/evolve_1_species_with_noise.py -d 20D17_nonoise_300x50 -g 300 -r 1 --run-id $SLURM_ARRAY_TASK_ID --noise-channel 0 --noise-level 0.0 --noise-generation 0
 sleep 1
