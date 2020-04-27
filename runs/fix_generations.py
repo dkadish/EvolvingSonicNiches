@@ -1,14 +1,9 @@
 import argparse
-import os, sys
+import os
 import shutil
 import types
 
 import pandas as pd
-
-EN_PATH = os.path.abspath(os.path.join(__file__, '..', '..'))
-print(EN_PATH)
-sys.path.append(EN_PATH)
-
 from runs import run_calculations
 
 directory = '/home/davk/EvolvingNiches/runs/data'
@@ -35,6 +30,7 @@ for d in directories:
     arguments = types.new_class('Args')()
     arguments.dir = d
     arguments.force = True
+    arguments.config = os.path.join(directory,'..')
 
     run_calculations.main(arguments)
 
