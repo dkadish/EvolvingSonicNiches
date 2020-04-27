@@ -20,7 +20,18 @@ def _plt_check():
     return True
 
 
-def plot_spectrum(spectra, cmap='rainbow', view=False, vmin=None, vmax=None,
+def _plt_finish(view=False, filename='plot.svg', close=True):
+    if filename is not None:
+        plt.savefig(filename)
+
+    if view:
+        plt.show()
+
+    if close:
+        plt.close()
+
+
+def plot_spectrum(spectra, cmap='rainbow', view=False, close=True, vmin=None, vmax=None,
                   filename='spectrum.svg', title="Average communication spectrum for all runs"):
     """Plots the spectrum from a dataframe produced by dataframe.calculations.spectrum.encoded_by_run_generation or
     dataframe.calculations.spectrum.received_by_run_generation.
@@ -50,18 +61,10 @@ def plot_spectrum(spectra, cmap='rainbow', view=False, vmin=None, vmax=None,
     plt.ylabel("Spectrum")
     plt.grid()
 
-    if filename is not None:
-        logger.debug('Saving file as {}'.format(filename))
-        plt.savefig(filename)
-
-    if view:
-        logger.debug('Viewing plot')
-        plt.show()
-
-    plt.close()
+    _plt_finish(view, filename, close)
 
 
-def plot_run_spectra(spectra, cmap='rainbow', view=False, vmin=None, vmax=None, shape=(5, 5),
+def plot_run_spectra(spectra, cmap='rainbow', view=False, close=True, vmin=None, vmax=None, shape=(5, 5),
                      filename='spectra.svg', title="Communication Spectra for All Runs", base_run=None,
                      numbering=False):
     # if not _plt_check(): return
@@ -97,19 +100,10 @@ def plot_run_spectra(spectra, cmap='rainbow', view=False, vmin=None, vmax=None, 
 
     fig.suptitle(title)
 
-    if filename is not None:
-        logger.debug('Saving file as {}'.format(filename))
-        plt.savefig(filename)
-
-    if view:
-        logger.debug('Viewing plot')
-        plt.show()
-
-    logger.debug('Closing plot')
-    plt.close()
+    _plt_finish(view, filename, close)
 
 
-def plot_channel_volume_histogram(spectra: pd.DataFrame, view=False, vmin=None, vmax=None,
+def plot_channel_volume_histogram(spectra: pd.DataFrame, view=False, close=True, vmin=None, vmax=None,
                                   filename='channel_histogram.svg', title="Channel volumes over multiple runs"):
     fig, axes = plt.subplots(3, 3, sharex=True, sharey=True, constrained_layout=True)
     bins = np.arange(0, 0.7, step=0.1)
@@ -120,16 +114,11 @@ def plot_channel_volume_histogram(spectra: pd.DataFrame, view=False, vmin=None, 
 
     fig.suptitle(title)
 
-    if filename is not None:
-        plt.savefig(filename)
-
-    if view:
-        plt.show()
-
-    plt.close()
+    _plt_finish(view, filename, close)
 
 
-def plot_subspecies_abundances(summary, run=None, species=None, role=None, view=False, filename='speciation.svg',
+def plot_subspecies_abundances(summary, run=None, species=None, role=None, view=False, close=True,
+                               filename='speciation.svg',
                                sharex=False):
     """Visualizes speciation throughout evolution.
 
@@ -151,7 +140,9 @@ def plot_subspecies_abundances(summary, run=None, species=None, role=None, view=
     if len(xs_keys) > 0:
         summary = summary.xs(xs_keys, level=xs_levels)
 
-    counts = summary.loc[:, 'counts'].unstack('subspecies')
+    counts = summary.loc[:, 'counts'].unstack('subspecies').sort_index(level='generation')
+    if run is None:
+        counts = counts.droplevel('run')
 
     fig, ax = plt.subplots()
     counts.plot.area(legend=False, ax=ax)
@@ -162,16 +153,11 @@ def plot_subspecies_abundances(summary, run=None, species=None, role=None, view=
 
     plt.tight_layout()
 
-    if filename is not None:
-        plt.savefig(filename)
-
-    if view:
-        plt.show()
-
-    plt.close()
+    _plt_finish(view, filename, close)
 
 
-def plot_subspecies_counts(summary, run=None, species=None, role=None, view=False, filename='speciation.svg'):
+def plot_subspecies_counts(summary, run=None, species=None, role=None, view=False, close=True,
+                           filename='speciation.svg'):
     """Visualizes speciation throughout evolution.
 
     :param pd.DataFrame summary: The dataframe produced by subspecies_averages_and_counts.
@@ -195,16 +181,10 @@ def plot_subspecies_counts(summary, run=None, species=None, role=None, view=Fals
 
     plt.tight_layout()
 
-    if filename is not None:
-        plt.savefig(filename)
-
-    if view:
-        plt.show()
-
-    plt.close()
+    _plt_finish(view, filename, close)
 
 
-def plot_subspecies_pairplot(summary, run=None, species=None, role=None, view=False, filename='speciation.svg'):
+def plot_subspecies_pairplot(summary, run=None, species=None, role=None, view=False, close=True, filename='speciation.svg'):
     """Visualizes speciation throughout evolution.
 
     :param pd.DataFrame summary: The dataframe produced by subspecies_averages_and_counts.
@@ -217,14 +197,13 @@ def plot_subspecies_pairplot(summary, run=None, species=None, role=None, view=Fa
         logger.warning("This display is not available due to a missing optional dependency (matplotlib)")
         return
 
-    sns.pairplot(data=summary.xs('sender', level='role'), plot_kws={'alpha': 0.05})
-    plt.show()
+    sns.pairplot(data=summary.xs(role, level='role'), plot_kws={'alpha': 0.05})
 
-    sns.pairplot(data=summary.xs('receiver', level='role'), plot_kws={'alpha': 0.05})
-    plt.show()
+    _plt_finish(view, filename, close)
 
 
-def plot_subspecies_fitness(summary, run=None, species=None, role=None, view=False, filename='subspecies_fitness.svg'):
+def plot_subspecies_fitness(summary, run=None, species=None, role=None, view=False, close=True,
+                            filename='subspecies_fitness.svg'):
     """Visualizes the total species fitness, with contributions broken out by subspecies.
 
     :param pd.DataFrame counts: The dataframe produced by subspecies_averages_and_counts.
@@ -256,16 +235,11 @@ def plot_subspecies_fitness(summary, run=None, species=None, role=None, view=Fal
 
     plt.tight_layout()
 
-    if filename is not None:
-        plt.savefig(filename)
-
-    if view:
-        plt.show()
-
-    plt.close()
+    _plt_finish(view, filename, close)
 
 
 def plot_subspecies_average_fitness(individuals: pd.DataFrame, run=None, species=None, role=None, view=False,
+                                    close=True,
                                     filename='subspecies_fitness.svg'):
     """Visualizes the comparative average fitness of subspecies
 
@@ -300,16 +274,11 @@ def plot_subspecies_average_fitness(individuals: pd.DataFrame, run=None, species
 
     plt.tight_layout()
 
-    if filename is not None:
-        plt.savefig(filename)
-
-    if view:
-        plt.show()
-
-    plt.close()
+    _plt_finish(view, filename, close)
 
 
-def plot_species_fitness(fitness: pd.DataFrame, run=None, species=None, role=None, view=False, filename='fitness.svg'):
+def plot_species_fitness(fitness: pd.DataFrame, run=None, species=None, role=None, only_mean=False, view=False, close=True,
+                         filename='fitness.svg'):
     """Visualizes fitness levels for species
 
     :param pd.DataFrame fitness: The dataframe produced by subspecies_averages_and_counts.
@@ -330,9 +299,11 @@ def plot_species_fitness(fitness: pd.DataFrame, run=None, species=None, role=Non
     if len(xs_keys) > 0:
         fitness = fitness.xs(xs_keys, level=xs_levels)
 
-    sns.lineplot(x="generation", y='mean', data=fitness.reset_index())
+    if not only_mean:
+        sns.lineplot(x="generation", y='mean', data=fitness.reset_index())
     sns.lineplot(x="generation", y='max', data=fitness.reset_index())
-    sns.lineplot(x="generation", y='min', data=fitness.reset_index())
+    if not only_mean:
+        sns.lineplot(x="generation", y='min', data=fitness.reset_index())
 
     ax = plt.gca()
     ax.set_title("Fitness")
@@ -341,10 +312,4 @@ def plot_species_fitness(fitness: pd.DataFrame, run=None, species=None, role=Non
 
     plt.tight_layout()
 
-    if filename is not None:
-        plt.savefig(filename)
-
-    if view:
-        plt.show()
-
-    plt.close()
+    _plt_finish(view, filename, close)
