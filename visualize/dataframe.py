@@ -218,8 +218,10 @@ def plot_subspecies_pairplot(summary, run=None, species=None, role=None, view=Fa
         return
 
     sns.pairplot(data=summary.xs('sender', level='role'), plot_kws={'alpha': 0.05})
+    plt.show()
 
     sns.pairplot(data=summary.xs('receiver', level='role'), plot_kws={'alpha': 0.05})
+    plt.show()
 
 
 def plot_subspecies_fitness(summary, run=None, species=None, role=None, view=False, filename='subspecies_fitness.svg'):
@@ -307,10 +309,10 @@ def plot_subspecies_average_fitness(individuals: pd.DataFrame, run=None, species
     plt.close()
 
 
-def plot_species_fitness(summary: pd.DataFrame, run=None, species=None, role=None, view=False, filename='fitness.svg'):
+def plot_species_fitness(fitness: pd.DataFrame, run=None, species=None, role=None, view=False, filename='fitness.svg'):
     """Visualizes fitness levels for species
 
-    :param pd.DataFrame summary: The dataframe produced by subspecies_averages_and_counts.
+    :param pd.DataFrame fitness: The dataframe produced by subspecies_averages_and_counts.
     :param view:
     :param filename:
     :return:
@@ -320,16 +322,21 @@ def plot_species_fitness(summary: pd.DataFrame, run=None, species=None, role=Non
         logger.warning("This display is not available due to a missing optional dependency (matplotlib)")
         return
 
-    stacked = summary.drop(columns='std').stack()
-    stacked.rename('stat', level=-1, inplace=True)
-    stacked.name = 'fitness'
+    xs_keys = [run, species, role]
+    xs_levels = ['run', 'species', 'role']
 
-    sns.lineplot(x="generation", y="fitness", style="stat",
-                 data=stacked.reset_index())
+    xs_keys, xs_levels = list(zip(*filter(lambda f: f[0] is not None, zip(xs_keys, xs_levels))))
+
+    if len(xs_keys) > 0:
+        fitness = fitness.xs(xs_keys, level=xs_levels)
+
+    sns.lineplot(x="generation", y='mean', data=fitness.reset_index())
+    sns.lineplot(x="generation", y='max', data=fitness.reset_index())
+    sns.lineplot(x="generation", y='min', data=fitness.reset_index())
 
     ax = plt.gca()
-    ax.set_title("Fitness by Subspecies")
-    ax.set_ylabel("Subspecies fitness weighted by size")
+    ax.set_title("Fitness")
+    ax.set_ylabel("Fitness")
     ax.set_xlabel("Generations")
 
     plt.tight_layout()

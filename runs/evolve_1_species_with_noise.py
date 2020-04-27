@@ -180,7 +180,7 @@ def do_pandas(dataframe_list, dirname, species, start_generation):
     individual_df = shrink_individuals(individual_df)
     logging.debug('Saving individual DataFrame in {} for species {}...'.format(dirname, species))
     ind_file = 'data/{}/individuals.xz'.format(dirname)
-    individual_df['generation'] = individual_df['generation'] + start_generation
+    # individual_df['generation'] = individual_df['generation'] + start_generation # I think this is extraneous
     individual_df.to_pickle(ind_file)
     return ind_file, mess_file
 

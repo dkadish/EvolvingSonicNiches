@@ -25,7 +25,7 @@ def species_fitness_summary(individuals: pd.DataFrame = None, individuals_file: 
         individuals = pd.read_pickle(individuals_file)
 
     fitness = individuals.groupby(['run', 'generation', 'species', 'role'])['fitness']
-    fitness_summary = fitness.agg(['max', 'mean', 'min'])
+    fitness_summary = fitness.agg(['max', 'mean', 'min', 'std'])
 
     if save is not None:
         fitness_summary.to_parquet(save)
