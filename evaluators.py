@@ -381,6 +381,7 @@ class DecoderEvaluator(BaseEvaluator):
             return None
 
         if (decided_correct and is_same) or no_species_id_score:
+            # TODO: This shouldn't be counted for no_species_id_score. FUCK.
             # Score for correct confidence that it is the same species
             fitness += nonlin_fitness(1 - abs(int(is_same) - decode[-1]))
 

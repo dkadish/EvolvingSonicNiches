@@ -8,6 +8,18 @@ import neat
 from dataframe import shrink_individuals
 from genome import DefaultGenome
 
+def average_bit_scores(messages: pd.DataFrame = None, messages_file: str = None, save='scores.parquet'):
+    assert not (messages is None and messages_file is None)
+
+    if messages_file is not None:
+        messages = pd.read_parquet(messages_file, columns=['run', 'generation', 'species', 'score_bit'])
+
+    bit_scores = messages.groupby(['run', 'generation', 'species']).mean()
+
+    if save is not None:
+        bit_scores.to_parquet(save)
+
+    return bit_scores
 
 def diversity(species: pd.DataFrame, conf_encoders, conf_decoders, individuals: pd.DataFrame = None, individuals_file: str = None):
     assert not (individuals is None and individuals_file is None)
@@ -60,16 +72,24 @@ def species_summary(individuals: pd.DataFrame = None, individuals_file: str = No
     if individuals_file is not None:
         individuals = pd.read_pickle(individuals_file)
 
+    individuals = individuals.reset_index()
     individuals = shrink_individuals(individuals)
 
+    # Column means
     no_subspecies_id = individuals.drop(columns=['subspecies', 'id'])
     byspecies = no_subspecies_id.groupby(['run', 'generation', 'species', 'role'])
-    species_means = byspecies.mean()
+    species_means = byspecies.mean().dropna()
 
+    # Fitness summary stats
     fitness = individuals.groupby(['run', 'generation', 'species', 'role'])['fitness']
-    fitness_summary = fitness.agg(['max', 'min', 'std'])
+    fitness_summary = fitness.agg(['max', 'min', 'std']).dropna()
 
     summary = pd.concat([species_means, fitness_summary], axis=1)
+
+    # Number of subspecies
+    subspecies_count = individuals.reset_index().groupby(['run', 'generation', 'species', 'role'])[
+        'subspecies'].nunique()
+    summary = summary.join(subspecies_count, how='inner')
 
     if config_path is not None:
         enc = os.path.join(config_path, 'config-encoders')

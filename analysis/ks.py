@@ -9,9 +9,10 @@ np.set_printoptions(precision=4, suppress=True)
 
 
 def kolmogorov_smirnov_matrix(spectra: pd.DataFrame):
-    ks_stat = np.zeros(shape=(9, 9))
-    ks_p = np.zeros(shape=(9, 9))
-    for i, j in combinations(range(9), 2):
+    n = spectra.columns.size
+    ks_stat = np.zeros(shape=(n, n))
+    ks_p = np.zeros(shape=(n, n))
+    for i, j in combinations(range(n), 2):
         ks_calc = ks_2samp(spectra.iloc[:, i], spectra.iloc[:, j])
         ks_stat[i, j] = ks_calc.statistic
         ks_stat[j, i] = ks_calc.statistic
@@ -25,8 +26,8 @@ def kolmogorov_smirnov_matrix(spectra: pd.DataFrame):
     return ks_stat, ks_p
 
 
-def kolmogorov_smirnov_clusters(ks):
-    cluster_centers_indices, labels = cluster.affinity_propagation(ks)
+def kolmogorov_smirnov_clusters(ks, **kwargs):
+    cluster_centers_indices, labels = cluster.affinity_propagation(ks, **kwargs)
     n_clusters_ = len(cluster_centers_indices)
 
     print('Estimated number of clusters: %d' % n_clusters_)
