@@ -37,6 +37,10 @@ def main(arguments):
             received = received_by_run_generation(messages=messages,
                                                   save=os.path.join(directory, 'received_spectrum.parquet'))
 
+    # if not exists(directory, 'bit_scores.parquet') or arguments.force:
+    #     logger.info('Loading messages')
+    #     messages = pd.read_parquet(os.path.join(directory, 'messages.parquet'))
+
     if not exists(directory, 'subspecies.parquet', 'fitness.parquet', 'species.parquet', 'individuals.parquet') \
             or arguments.force:
         logger.info('Loading individuals')

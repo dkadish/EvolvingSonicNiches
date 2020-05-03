@@ -57,7 +57,11 @@ def plot_spectrum(spectra, cmap='rainbow', view=False, close=True, vmin=None, vm
     figsize = (10.5,8)
     if 'figsize' in kwargs:
         figsize = kwargs['figsize']
-    fig, ax = plt.subplots(figsize=figsize)
+        fig, ax = plt.subplots(figsize=figsize)
+    else:
+        ax = plt.gca()
+        fig = ax.get_figure()
+
     p = ax.pcolormesh(generational_spectrum.T, cmap=cmap, vmin=vmin, vmax=vmax)
     plt.yticks([0.5+i for i in range(9)], labels=range(9))
     plt.grid(b=None, axis='y')
@@ -111,7 +115,7 @@ def plot_spectra_and_fitness(spectra: pd.DataFrame, species: pd.DataFrame, cmap=
                 level='generation')
 
         sns.lineplot(data=data.reset_index(), x='generation', y='fitness', label='mean', ax=axes[row+1,col], legend=False)
-        sns.lineplot(data=data.reset_index(), x='generation', y='max', label='max', ax=axes[row+1,col], legend=False)
+        sns.lineplot(data=data.reset_index(), x='generation', y='max', label='max', ax=axes[row+1,col], legend=False, alpha=0.5)
         if col==0:
             axes[row+1, col].set_ylabel('fitness')
 
@@ -366,8 +370,8 @@ def plot_species_fitness(fitness: pd.DataFrame, run=None, species=None, role=Non
         fitness = fitness.xs(xs_keys, level=xs_levels)
 
     if not only_mean:
-        sns.lineplot(x="generation", y='fitness', data=fitness.reset_index(), **kwargs)
-    sns.lineplot(x="generation", y='max', data=fitness.reset_index(), **kwargs)
+        sns.lineplot(x="generation", y='max', data=fitness.reset_index(), **kwargs)
+    sns.lineplot(x="generation", y='fitness', data=fitness.reset_index(), **kwargs)
     if not only_mean:
         sns.lineplot(x="generation", y='min', data=fitness.reset_index(), **kwargs)
 
