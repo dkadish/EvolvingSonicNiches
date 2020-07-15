@@ -34,7 +34,9 @@ def _plt_finish(view=False, filename='plot.svg', close=True):
 
 
 def plot_spectrum(spectra, cmap='rainbow', view=False, close=True, vmin=None, vmax=None,
-                  filename='spectrum.svg', title="Average communication spectrum for all runs", **kwargs):
+                  filename='spectrum.svg', title="Average communication spectrum for all runs",
+                  xlabel='Generation', ylabel='Spectrum',
+                  colorbar=True, **kwargs):
     """Plots the spectrum from a dataframe produced by dataframe.calculations.spectrum.encoded_by_run_generation or
     dataframe.calculations.spectrum.received_by_run_generation.
 
@@ -65,11 +67,14 @@ def plot_spectrum(spectra, cmap='rainbow', view=False, close=True, vmin=None, vm
     p = ax.pcolormesh(generational_spectrum.T, cmap=cmap, vmin=vmin, vmax=vmax)
     plt.yticks([0.5+i for i in range(9)], labels=range(9))
     plt.grid(b=None, axis='y')
-    fig.colorbar(p, ax=ax)
+    if colorbar:
+        fig.colorbar(p, ax=ax)
 
     plt.title(title)
-    plt.xlabel("Generations")
-    plt.ylabel("Spectrum")
+    if xlabel is not None:
+        plt.xlabel(xlabel)
+    if ylabel is not None:
+        plt.ylabel(ylabel)
     plt.grid()
 
     _plt_finish(view, filename, close)
@@ -129,13 +134,14 @@ def plot_spectra_and_fitness(spectra: pd.DataFrame, species: pd.DataFrame, cmap=
 
 def plot_run_spectra(spectra, cmap='rainbow', view=False, close=True, vmin=None, vmax=None, shape=(5, 5),
                      filename='spectra.svg', title="Communication Spectra for All Runs", base_run=None,
-                     numbering=False, **kwargs):
+                     numbering=False, colorbar=True, **kwargs):
     # if not _plt_check(): return
 
     logger.debug('Compiling data')
     run_generational_spectrum = spectra.groupby(['run', 'generation'], sort=False).mean()
 
     fig, axes = plt.subplots(*shape, sharex=True, sharey=True, constrained_layout=True, **kwargs)
+    axes = axes.reshape(*shape)
     runs = run_generational_spectrum.index.get_level_values('run').unique()
     for run, ax in zip(runs, axes.flat):
         logger.debug('Plotting run number {}'.format(run))
@@ -159,9 +165,12 @@ def plot_run_spectra(spectra, cmap='rainbow', view=False, close=True, vmin=None,
         if numbering:
             ax.set_title(run)
 
-    fig.colorbar(p, ax=axes[:, -1], location='right')
+    print(filename)
+    if colorbar:
+        fig.colorbar(p, ax=axes[:, -1], location='right')
 
-    fig.suptitle(title)
+    if title is not None:
+        fig.suptitle(title)
 
     _plt_finish(view, filename, close)
 
@@ -422,7 +431,8 @@ def plot_species_fitnesses_by_run(fitness: pd.DataFrame, run=None, species=None,
 
 def plot_network_stats(data: pd.DataFrame, run=None, species=None, role=None, view=False, close=True,
                        axes = None,
-                         filename='fitness.svg', **kwargs):
+                       title_1='nodes', title_2='connections', xlabel='generation', ylabel='count',
+                       filename='fitness.svg', **kwargs):
     """Visualizes the average node and connection count for each generation
 
     :param pd.DataFrame fitness: The dataframe produced by subspecies_averages_and_counts.
@@ -446,28 +456,42 @@ def plot_network_stats(data: pd.DataFrame, run=None, species=None, role=None, vi
     ax = plt.gca()
     if axes is not None:
         ax = axes[0]
-    ax.xaxis.set_major_locator(FixedLocator(300))
+    # ax.xaxis.set_major_locator(FixedLocator(300))
     sns.lineplot(x="generation", y='nodes', data=data.reset_index(), ax=ax, **kwargs)
-    ax.set_title('Nodes ({})'.format(role))
+    ax.set_title('nodes')
     ax.set_ylabel('count')
+
+    if title_1 is not None:
+        ax.set_title(title_1)
+    if xlabel is not None:
+        ax.set_xlabel(xlabel)
+    if ylabel is not None:
+        ax.set_ylabel(ylabel)
+
     if axes is not None:
         ax = axes[1]
-        ax.xaxis.set_major_locator(FixedLocator(300))
+        # ax.xaxis.set_major_locator(FixedLocator(300))
     sns.lineplot(x="generation", y='connections', data=data.reset_index(), ax=ax, **kwargs)
-    ax.set_ylabel('count')
-    ax.set_title('Connections ({})'.format(role))
+    if title_2 is not None:
+        ax.set_title(title_2)
+    if xlabel is not None:
+        ax.set_xlabel(xlabel)
+    if ylabel is not None:
+        ax.set_ylabel(ylabel)
 
     # ax = plt.gca()
     # ax.set_ylabel("Count")
     # ax.set_xlabel("Generations")
-    plt.gcf().suptitle("Neural Network Nodes and Connections")
+    # plt.gcf().suptitle("Neural Network Nodes and Connections")
 
     plt.tight_layout()
 
     _plt_finish(view, filename, close)
 
 def plot_subspecies_count(data: pd.DataFrame, run=None, species=None, role=None, view=False, close=True,
-                         filename='fitness.svg', **kwargs):
+                         filename='fitness.svg',
+                         title="Number of Subspecies", xlabel='generation', ylabel='count',
+                         **kwargs):
     """Visualizes fitness levels for species
 
     :param pd.DataFrame fitness: The dataframe produced by subspecies_averages_and_counts.
@@ -491,9 +515,12 @@ def plot_subspecies_count(data: pd.DataFrame, run=None, species=None, role=None,
     sns.lineplot(x="generation", y='subspecies', data=data.reset_index(), **kwargs)
 
     ax = plt.gca()
-    ax.set_title("Number of Subspecies")
-    ax.set_ylabel("Count")
-    ax.set_xlabel("Generations")
+    if title is not None:
+        ax.set_title(title)
+    if xlabel is not None:
+        ax.set_xlabel(xlabel)
+    if ylabel is not None:
+        ax.set_ylabel(ylabel)
 
     plt.tight_layout()
 

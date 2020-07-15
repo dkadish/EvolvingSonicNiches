@@ -31,7 +31,7 @@ print()
 #     print('Creating Backup...')
 #     shutil.copyfile(f, f + '.backup')
 #     print('Reading File...')
-#     individuals = pd.read_parquet(f)
+#     individuals = pd.read_parquet(f
 #     print('Adjusting generations...')
 #     individuals = individuals.reset_index()
 #     # individuals.loc[individuals['generation'] >= 600, 'generation'] -= 300
