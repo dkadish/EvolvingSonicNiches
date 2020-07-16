@@ -455,3 +455,13 @@ runs/config.ini
 .idea/datalore.xml
 
 .idea/sonarlint/
+
+*.pdf
+
+*.svg
+
+*.mp4
+
+*.png
+
+*.gif
