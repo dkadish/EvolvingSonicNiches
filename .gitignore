@@ -448,9 +448,9 @@ pip-selfcheck.json
 
 data/
 
-analysis/results/
+evolvingniches/analysis/results/
 
-runs/config.ini
+evolvingniches/runs/config.ini
 
 .idea/datalore.xml
 

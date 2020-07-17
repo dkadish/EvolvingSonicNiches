@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from noise import Noise, GenerationStepNoise, WhiteNoise
+from evolvingniches.noise import Noise, GenerationStepNoise, WhiteNoise
 
 
 class TestNoise(unittest.TestCase):

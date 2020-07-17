@@ -9,7 +9,8 @@ from archive.fitness import Fitness, FitnessList
 from archive.messages import Messages
 from archive.score import Score, ScoreList
 from neat import DefaultGenome, StatisticsReporter
-import stats
+from evolvingniches import stats
+
 
 class TestArchiveFilterableList(unittest.TestCase):
 

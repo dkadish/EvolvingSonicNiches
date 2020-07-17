@@ -11,7 +11,9 @@ Welcome to Evolving Niches's documentation!
    :caption: Contents:
 
    modules
-   runs
+   experiments
+   scripts
+   examples
 
 
 Indices and tables

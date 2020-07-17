@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from evaluators import DecoderEvaluator
+from evolvingniches.evaluators import DecoderEvaluator
 
 
 class TestDecoderEvaluator(TestCase):
