@@ -1,12 +1,17 @@
-Modules for Evolving Niches
+API
 ===========================
 
 .. toctree::
    :maxdepth: 2
 
-   evaluators
-   messaging
-   parallel
-   species
-   stats
-   visualize
+   modules/analysis
+   modules/dataframe
+   modules/evaluators
+   modules/genome
+   modules/messaging
+   modules/noise
+   modules/parallel
+   modules/population
+   modules/species
+   modules/stats
+   modules/visualize
