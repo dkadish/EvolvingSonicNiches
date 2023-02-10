@@ -14,7 +14,7 @@ graphviz==0.13.2
 humanize==1.0.0
 idna==2.9
 imagesize==1.2.0
-ipython==7.16.3
+ipython==8.10.0
 ipython-genutils==0.2.0
 jedi==0.16.0
 Jinja2==2.11.1
